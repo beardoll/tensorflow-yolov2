@@ -1,0 +1,7 @@
+data/
+pretrained_model/
+output/
+
+*.pyc
+*.so
+*.o
