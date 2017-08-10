@@ -55,6 +55,10 @@ __C.TRAIN.ANCHORS = [1.3221, 1.73145, 3.19275, 4.00944, 5.05587, \
 __C.TRAIN.CLASSES = ['Car', 'Pedestrian', 'Cyclist']
 __C.TRAIN.DONT_CARE = ['DontCare', 'Misc', 'Person_sitting', 'Truck', 'Tram']
 
+# Boxes per pixel of output feature map
+__C.TRAIN.BOX_NUM = 5
+
+
 # Paths
 __C.ROOT_DIR = osp.abspath(osp.join(osp.dirname(__file__), '..', '..'))
 __C.OUTPUT_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'output'))

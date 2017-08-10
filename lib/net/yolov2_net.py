@@ -10,7 +10,7 @@ class YOLOv2_net(Network):
         self.layers = dict({'data': self.data})
         self.trainable = trainable
         self.is_training = is_training
-        self.num_outputs = 5 * (len(cfg.TRAIN.CLASSES) + 5)
+        self.num_outputs = cfg.TRAIN.BOX_NUM * (len(cfg.TRAIN.CLASSES) + 5)
         self.setup()
 
     def setup(self):
@@ -58,7 +58,7 @@ class YOLOv2_net(Network):
 
         Args:
             boxes: N1 x 4 ndarray, with format (xc, yc, w, h)
-            query_box: 1 x 4 ndarray, with format (xc, yc, w, h)
+            query_box: np vector, with format (xc, yc, w, h)
         Returns:
             overlaps: N1 x 1 ndarray of overlap between boxes and query_box 
         '''
@@ -100,9 +100,10 @@ class YOLOv2_net(Network):
         
         # Calculate the boxes square and query_box square
         square1 = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
-        square2 = (query_box[2] - query_box[0]) * (query_box[3] - query_box[1])
+        square2 = (query_box[:, 2] - query_box[:, 0]) * (query_box[:, 3] -
+                query_box[:, 1])
 
-        return inter_square / (square1 * square2 - inter_square + 1e-6)
+        return inter_square / (square1 + square2 - inter_square + 1e-6)
 
     def logistic(self, x):
         return 1./(1 + np.exp(-x))
@@ -185,6 +186,8 @@ class YOLOv2_net(Network):
         map_width = predicts.shape[2]
 
         box_num = cfg.TRAIN.BOX_NUM
+        
+        # The len of infomation for each box
         box_info_len = 4 + 1 + len(cfg.TRAIN.CLASSES)
         
         # Four evaluation criterions
@@ -197,11 +200,12 @@ class YOLOv2_net(Network):
         # Total objects in labels
         obj_count = 0
 
+        delta = np.zeros((batch_size, map_height, map_width, box_num * box_info_len),
+                dtype = np.float32)
+
         for b in range(batch_size):
             label_this_batch = labels[b, :, :]
-            predict_this_batch = predicts[b, :, :]
-            delta = np.zeros((map_height, map_width, box_num * box_info_len),
-                    dtype = np.float32)
+            predict_this_batch = predicts[b, :, :, :]
             for h in range(map_height):
                 for w in range(map_width):
                     for k in range(box_num):
@@ -218,13 +222,15 @@ class YOLOv2_net(Network):
                         # iou between current box and gt boxes
                         box_iou = self.iou(gt_boxes, box)
 
-                        if box_iou > cfg.TRAIN.THRESHOLD:
+                        if box_iou > cfg.TRAIN.THRESH:
                             # If the box iou exceed overlaps,
-                            # then the loss is zero
-                            delta[h, w,: k*box_info_len+4] = 0
+                            # then the loss is zero.
+                            # Loss of some boxes will be recalculated in the
+                            # following.
+                            delta[b, h, w,: k*box_info_len+4] = 0
                         else:
-                            delta[h, w,: k*box_info_len+4] = \
-                                cfg.TRAIN.NOOBJECT_SCALE * (0 -self.logistic(box_info[4]))
+                            delta[b, h, w,: k*box_info_len+4] = \
+                                cfg.TRAIN.NOOBJECT_SCALE * (0 - self.logistic(box_info[4]))
 
                         avg_anyobj += self.logistic(box_info[4])
 
@@ -240,7 +246,7 @@ class YOLOv2_net(Network):
                             truth_box = np.array([truth_box_x, truth_box_y,
                                                   truth_box_w, truth_box_h])
 
-                            delta[h, w,: k*box_info_len, k*box_info_len+4] = \
+                            delta[b, h, w,: k*box_info_len : k*box_info_len+4] = \
                                     self.compute_coord_delta(box, truth_box, \
                                     h, w, map_height, map_width, prior_h, prior_w, 0.01)
 
@@ -249,11 +255,12 @@ class YOLOv2_net(Network):
             for m in range(label_num):
                 """
                 For each gt_box, we find one responsible pred box,
-                and compute coord loss, class loss for that pred box
+                and compute coord loss, obj loss, class loss for that pred box
                 """
                 current_label = label_this_batch[m,: ]
                 truth_box = current_label[1:5]
-                # Fine the pixel index w.r.t feature map
+                
+                # Find the pixel index w.r.t feature map
                 w = int(truth_box[0] * map_width)
                 h = int(truth_box[1] * map_height)
                 best_iou = 0
@@ -262,7 +269,7 @@ class YOLOv2_net(Network):
                 prior_w = cfg.TRAIN.ANCHORS[2*k]
                 prior_h = cfg.TRAIN.ANCHORS[2*k+1]
                 
-                
+                # Find the best matching pred box for gt box 
                 for k in range(box_num):
                     box_info = predict_this_batch[h, w, k * box_info_len: (k+1)
                             * box_info_len]
@@ -300,25 +307,25 @@ class YOLOv2_net(Network):
                 avg_obj += self.logistic(best_box_info[4])
 
                 # Coords loss
-                delta[h, w, best_idx * box_info_len: best_idx * box_info_len +
+                delta[b, h, w, best_idx * box_info_len: best_idx * box_info_len +
                         4] = self.compute_coord_delta(best_box, truth_box, \
                                 h, w, map_height, map_width, prior_h, prior_w,\
                                 cfg.TRAIN.COORD_SCALE * (2 - truth_box[2]*truth_Box[3]))
 
                 # Object loss
-                delta[h, w, best_idx * box_info_len + 4] = \
+                delta[b, h, w, best_idx * box_info_len + 4] = \
                         cfg.TRAIN.OBJECT_SCALE * (best_iou - self.logistic(best_box_info[4]))
 
                 # class prob loss
-                cls = truth_box[0]
+                cls = truth_box[0]   # class index for current gt box
                 temp = np.zeros(len(cfg.TRAIN.CLASSES), dtype = np.float32)
                 temp[cls] = 1.0
 
-                delta[h, w, best_idx * box_info_len + 5: (best_idx + 1) *
+                delta[b, h, w, best_idx * box_info_len + 5: (best_idx + 1) *
                         box_info_len] = cfg.TRAIN.CLASS_SCALE * (temp - \
                                 best_box_info[5:])
 
-                avg_cat += best_box_info[5+best_idx]
+                avg_cat += best_box_info[5 + cls]
 
         print("Region Avg IOU: %f, Class: %f, Obj: %f, No Obj: %f, Avg Recall:\
                 %f, count %d"%(avg_iou/obj_count, avt_cat/obj_count,
