@@ -153,7 +153,7 @@ class YOLOv2_net(Network):
         tw2 = np.log(box2[2] * map_width / prior_w)
         th2 = np.log(box2[3] * map_height / prior_h)
 
-        delta = np.zeros((4,1), dtype=np.float32)
+        delta = np.zeros(4, dtype=np.float32)
         delta[0] = scale * (log_tx2 - log_tx1)
         delta[1] = scale * (log_ty2 - log_ty1)
         delta[2] = scale * (tw2 - tw1)
@@ -227,9 +227,9 @@ class YOLOv2_net(Network):
                             # then the loss is zero.
                             # Loss of some boxes will be recalculated in the
                             # following.
-                            delta[b, h, w,: k*box_info_len+4] = 0
+                            delta[b, h, w, k*box_info_len+4] = 0
                         else:
-                            delta[b, h, w,: k*box_info_len+4] = \
+                            delta[b, h, w, k*box_info_len+4] = \
                                 cfg.TRAIN.NOOBJECT_SCALE * (0 - self.logistic(box_info[4]))
 
                         avg_anyobj += self.logistic(box_info[4])
@@ -246,7 +246,7 @@ class YOLOv2_net(Network):
                             truth_box = np.array([truth_box_x, truth_box_y,
                                                   truth_box_w, truth_box_h])
 
-                            delta[b, h, w,: k*box_info_len : k*box_info_len+4] = \
+                            delta[b, h, w, k*box_info_len : k*box_info_len+4] = \
                                     self.compute_coord_delta(box, truth_box, \
                                     h, w, map_height, map_width, prior_h, prior_w, 0.01)
 
@@ -276,7 +276,6 @@ class YOLOv2_net(Network):
 
                     box = self.restore_box(box_info[0:4], h, w, map_height, 
                                 map_width, prior_h, prior_w)
-
                     
                     # We make the centroids of truth_box and box the same
                     truth_shift = truth_box
