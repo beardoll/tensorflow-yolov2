@@ -1,9 +1,11 @@
 import tensorflow as tf
-import os
+import os.path as osp
 import numpy as np
+from config.config import cfg
 
-filename = os.path.join(os.getcwd(), 'reorg.so')
-assert os.path.exists(filename)
+filename = osp.join(cfg.ROOT_DIR, 'lib', 'reorg_layer', 'reorg.so')
+assert osp.exists(filename), \
+        'Path {} does not exist!'.format(filename)
 
 _reorg_module = tf.load_op_library(filename)
 reorg = _reorg_module.reorg

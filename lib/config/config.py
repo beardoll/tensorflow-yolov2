@@ -6,7 +6,6 @@ This file specifies default options for YOLOv2 (yolo-voc.cfg).
 import os
 import os.path as osp
 import numpy as np
-from distuils import spawn
 from easydict import EasyDict as edict
 
 __C = edict()
@@ -60,7 +59,7 @@ __C.TRAIN.DONT_CARE = ['DontCare', 'Misc', 'Person_sitting', 'Truck', 'Tram']
 __C.ROOT_DIR = osp.abspath(osp.join(osp.dirname(__file__), '..', '..'))
 __C.OUTPUT_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'output'))
 __C.DATA_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'data'))
-
+__C.PRETRAINED_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'pretrained_model'))
 
 def _merge_a_into_b(a, b):
     '''Merge config dictionary a into config dictionary b, clobbering the 

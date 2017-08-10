@@ -16,7 +16,7 @@ def _reorg_shape(op):
     width = dims_data[2]
 
     stride = op.get_attr('stride')
-    output_shape = tf.TensorShape([batches, height/stride, width/stride, channels*stride*stride])
+    output_shape = tf.TensorShape([None, None, None, channels*stride*stride])
     return [output_shape]
 
 @ops.RegisterGradient("Reorg")
