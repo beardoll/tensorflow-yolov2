@@ -18,13 +18,19 @@ cfg = __C
 __C.TRAIN = edict()
 
 # Batch size
-__C.TRAIN.BATCH = 64
+__C.TRAIN.BATCH = 8
 
 # Learning rate
 __C.TRAIN.LEARNING_RATE = 0.001
 __C.TRAIN.MOMENTUM = 0.9
 __C.STEP_SIZE = [40000, 60000]
 __C.SCALES = [0.1, 0.1]
+
+# Max objects in a box
+__C.TRAIN.MAX_OBJ = 30
+
+# Iteration
+__C.TRAIN.MAX_ITERS = 80200
 
 # Weight decay
 __C.TRAIN.DECAY = 0.0005
@@ -34,6 +40,9 @@ __C.TRAIN.SATURATION = 1.5
 __C.TRAIN.EXPOSURE = 1.5
 __C.TRAIN.HUE = 0.1
 __C.TRAIN.JITTER = 0.3
+
+# The time interval between two snapshots
+__C.TRAIN.SNAPSHOTS = 5000
 
 # Anchor boxes per pixel in feature map
 __C.TRAIN.BOX_NUM = 5
@@ -58,12 +67,18 @@ __C.TRAIN.DONT_CARE = ['DontCare', 'Misc', 'Person_sitting', 'Truck', 'Tram']
 # Boxes per pixel of output feature map
 __C.TRAIN.BOX_NUM = 5
 
+# Snapshot filename
+__C.TRAIN.SNAPSHOT_INFIX = 'kitti'
+__C.TRAIN.SNAPSHOT_PREFIX = 'yolov2'
+
 
 # Paths
 __C.ROOT_DIR = osp.abspath(osp.join(osp.dirname(__file__), '..', '..'))
 __C.OUTPUT_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'output'))
 __C.DATA_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'data'))
 __C.PRETRAINED_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'pretrained_model'))
+__C.TRAIN.SUMMARY_DIR = osp.abspath(osp.join(__C.OUTPUT_DIR, 'summary'))
+__C.TRAIN.TRAINED_DIR = osp.abspath(osp.join(__C.OUTPUT_DIR, 'trained_model'))
 
 def _merge_a_into_b(a, b):
     '''Merge config dictionary a into config dictionary b, clobbering the 

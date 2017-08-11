@@ -3,6 +3,9 @@ import _init_paths
 from net.yolov2_net import YOLOv2_net
 import os
 from config.config import cfg
+from solver.yolov2_solver import SolverWrapper
+import numpy as np
+
 
 def train():
     pretrained_model = os.path.join(cfg.PRETRAINED_DIR, 'npy', 'yolov2.npy')
@@ -11,17 +14,18 @@ def train():
 
     net = YOLOv2_net(is_training=True)
 
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
+    predicts = np.ones((8, 19, 19, 40), np.float32)
+    labels = np.ones((8, 30, 5), np.float32) * 0.5
+    obj_num = np.ones(8, np.int)
+    seen = 100
+
+    net.cal_loss_py(predicts, labels, obj_num, seen)
+
+    #gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.8)
     
-    sess = tf.Session(config = tf.ConfigProto(allow_soft_placement=True,
-        gpu_options = gpu_options))
-
-
-    sess.run(tf.global_variables_initializer())
-
-    print('Loading pretrained model from {}').format(pretrained_model)
-    net.load(pretrained_model, sess)
-    sess.close()
+    #sw = SolverWrapper(net, 'train', pretrained_model)
+    
+    #sw.train_net()
 
 
 if __name__ == '__main__':

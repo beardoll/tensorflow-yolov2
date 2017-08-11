@@ -1,7 +1,7 @@
 import tensorflow as tf
 from net.network import Network
 from config.config import cfg
-
+import numpy as np
 
 class YOLOv2_net(Network):
     def __init__(self, is_training, trainable=True):
@@ -51,57 +51,52 @@ class YOLOv2_net(Network):
              .conv(1, 1, self.num_outputs, 1, 1, name='region30', 
                  activation='linear', batchnorm=False))
 
-    def iou(self, boxes, query_box):
-        '''Compute ious between boxes and query_box
+    def iou(self, box1, box2):
+        '''Compute ious between box1 and box2
 
         python function
 
         Args:
-            boxes: N1 x 4 ndarray, with format (xc, yc, w, h)
-            query_box: np vector, with format (xc, yc, w, h)
+            box1, box2: 1 x 4 ndarray, with format (xc, yc, w, h)
         Returns:
-            overlaps: N1 x 1 ndarray of overlap between boxes and query_box 
+            overlaps: float32,  overlap between boxes and query_box 
         '''
 
         # Tranform (xc, yc, w, h) -> (x1, y1, x2, y2)
-        boxes = np.concatenate(([boxes[:, 0] - boxes[:, 2] / 2, \
-                                 boxes[:, 1] - boxes[:, 3] / 2, \
-                                 boxes[:, 0] + boxes[:, 2] / 2, \
-                                 boxes[:, 1] + boxes[:, 3] / 2]), axis=1)
+        box1 = np.array(([box1[0] - box1[2] / 2, \
+                          box1[1] - box1[3] / 2, \
+                          box1[0] + box1[2] / 2, \
+                          box1[1] + box1[3] / 2]), 
+                          dtype = np.float32)
         
-        query_box = np.array(([query_box[0] - query_box[2] / 2, \
-                               query_box[1] - query_box[3] / 2, \
-                               query_box[0] + query_box[2] / 2, \
-                               query_box[1] + query_box[3] / 2]),
-                               dtype=np.float32)
-
-        # Repeat query_box along y-axis
-        temp = np.zeros((boxes.shape[0], 1), dtype=np.float32)
-        query_box = query_box + temp
+        box2 = np.array(([box2[0] - box2[2] / 2, \
+                          box2[1] - box2[3] / 2, \
+                          box2[0] + box2[2] / 2, \
+                          box2[1] + box2[3] / 2]),
+                          dtype=np.float32)
 
         # Calculate the left-up points and right-down points 
-        # of overlap areas
-        lu = boxes[:, 0:2] * (boxes[:, 0:2] >= query_box[:, 0:2]) + \
-                query_box[:, 0:2] * (boxes[:, 0:2] < query_box[:, 0:2])
+        # of overlap area
+        lu = box1[0:2] * (box1[0:2] >= box2[0:2]) + \
+                box2[0:2] * (box1[0:2] < box2[0:2])
 
-        rd = boxes[:, 2:4] * (boxes[:, 2:4] <= query_box[:, 2:4]) + \
-                query_box[:, 2:4] * (boxes[:, 2:4] > query_box[:, 2:4])
+        rd = box1[2:4] * (box1[2:4] <= box2[2:4]) + \
+                box2[2:4] * (box1[2:4] > box2[2:4])
 
         # itersection = (iter_r - iter_l) * (iter_d - iter_u)
         intersection = rd - lu
 
-        inter_square = intersection[:, 0] * intersection[:, 1]
+        inter_square = intersection[0] * intersection[1]
 
         # Elimated those itersection with w or h < 0
-        mask = np.array(intersection[:, 0] > 0, np.float32) * \
-               np.array(intersection[:, 1] > 0, np.float32)
+        mask = np.array(intersection[0] > 0, np.float32) * \
+               np.array(intersection[1] > 0, np.float32)
 
         inter_square = mask * inter_square
         
         # Calculate the boxes square and query_box square
-        square1 = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
-        square2 = (query_box[:, 2] - query_box[:, 0]) * (query_box[:, 3] -
-                query_box[:, 1])
+        square1 = (box1[2] - box1[0]) * (box1[3] - box1[1])
+        square2 = (box2[2] - box2[0]) * (box2[3] - box2[1])
 
         return inter_square / (square1 + square2 - inter_square + 1e-6)
 
@@ -162,7 +157,7 @@ class YOLOv2_net(Network):
         return delta
         
 
-    def cal_loss_py(self, predicts, labels, seen):
+    def cal_loss_py(self, predicts, labels, obj_num, seen):
         '''Calculate loss between predicts and labels
 
         python function, callable for tensorflow using tf.py_func
@@ -171,16 +166,17 @@ class YOLOv2_net(Network):
             predicts: Commonly batch x map_height x map_width x boxes_info
                       boxes_info: info for several (commonly 5) boxes,
                       including coords(4), object(1), class_prob(class_num)
-            labels: ground-truth bounding box, batch x num_objects x 
+            labels: ground-truth bounding box, batch x 30 x 
                     (cls(1), coords(4))
+            obj_num: batch x 1, indicate the number of objs in an image
             seen: The number of pictures that have been fed into the network
         Returns:
-            loss:  loss over of all data
+            loss:  batch x 1, for each image
         Warnings:
             Note that the real box coords in predicts can only be grained after
             applying function self.restore_box()
         '''
-        
+
         batch_size = cfg.TRAIN.BATCH
         map_height = predicts.shape[1]
         map_width = predicts.shape[2]
@@ -204,7 +200,7 @@ class YOLOv2_net(Network):
                 dtype = np.float32)
 
         for b in range(batch_size):
-            label_this_batch = labels[b, :, :]
+            label_this_batch = labels[b, 0:obj_num[b], :]
             predict_this_batch = predicts[b, :, :, :]
             for h in range(map_height):
                 for w in range(map_width):
@@ -218,10 +214,12 @@ class YOLOv2_net(Network):
                                 map_width, prior_h, prior_w)
                         
                         gt_boxes = np.array(label_this_batch[:, 1:5])
+                        box_iou = 0
+                        for gb in gt_boxes:
+                            iou = self.iou(box, gb)
+                            if iou > box_iou:
+                                box_iou = iou 
                         
-                        # iou between current box and gt boxes
-                        box_iou = self.iou(gt_boxes, box)
-
                         if box_iou > cfg.TRAIN.THRESH:
                             # If the box iou exceed overlaps,
                             # then the loss is zero.
@@ -250,9 +248,8 @@ class YOLOv2_net(Network):
                                     self.compute_coord_delta(box, truth_box, \
                                     h, w, map_height, map_width, prior_h, prior_w, 0.01)
 
-            label_num = label_this_batch.shape[0]
-            obj_count += label_num
-            for m in range(label_num):
+            obj_count += obj_num[b]
+            for m in range(obj_num[b]):
                 """
                 For each gt_box, we find one responsible pred box,
                 and compute coord loss, obj loss, class loss for that pred box
@@ -281,9 +278,9 @@ class YOLOv2_net(Network):
                     truth_shift = truth_box
                     truth_shift[0] = 0.0
                     truth_shift[1] = 0.0
-                    truth_shift = truth_shift[np.newaxis,:]
 
-                    box_iou = self.iou(truth_shift, box)
+                    box_iou = self.iou(box, truth_shift)
+
                     if box_iou > best_iou:
                         best_iou = box_iou
                         best_idx = k
@@ -295,8 +292,7 @@ class YOLOv2_net(Network):
                         map_height, map_width, prior_h, prior_w)
 
                 # Recalculate iou
-                truth_shift = truth_box[np.newaxis,: ]
-                best_iou = self.iou(truth_shift, best_box)
+                best_iou = self.iou(best_box, truth_box)
 
                 if best_iou > 0.5:
                     recall += 1
@@ -309,14 +305,14 @@ class YOLOv2_net(Network):
                 delta[b, h, w, best_idx * box_info_len: best_idx * box_info_len +
                         4] = self.compute_coord_delta(best_box, truth_box, \
                                 h, w, map_height, map_width, prior_h, prior_w,\
-                                cfg.TRAIN.COORD_SCALE * (2 - truth_box[2]*truth_Box[3]))
+                                cfg.TRAIN.COORD_SCALE * (2 - truth_box[2]*truth_box[3]))
 
                 # Object loss
                 delta[b, h, w, best_idx * box_info_len + 4] = \
                         cfg.TRAIN.OBJECT_SCALE * (best_iou - self.logistic(best_box_info[4]))
 
                 # class prob loss
-                cls = truth_box[0]   # class index for current gt box
+                cls = int(truth_box[0])   # class index for current gt box
                 temp = np.zeros(len(cfg.TRAIN.CLASSES), dtype = np.float32)
                 temp[cls] = 1.0
 
@@ -327,26 +323,55 @@ class YOLOv2_net(Network):
                 avg_cat += best_box_info[5 + cls]
 
         print("Region Avg IOU: %f, Class: %f, Obj: %f, No Obj: %f, Avg Recall:\
-                %f, count %d"%(avg_iou/obj_count, avt_cat/obj_count,
-                    avg_anyobj/(map_width*map_height*self.num_outputs*batch),
-                    recall/obj_count, count))
+                %f, count %d"%(avg_iou/obj_count, avg_cat/obj_count,
+                    avg_obj/obj_count, avg_anyobj/(map_width*map_height*self.num_outputs*batch_size),
+                    recall/obj_count, obj_count))
+
+        delta = np.square(delta)
+
+        # Record coord loss, object loss and class loss
+        coord_loss = 0
+        object_loss = 0
+        class_loss = 0
+        for b in range(batch_size):
+            for h in range(map_height):
+                for w in range(map_width):
+                    for k in range(box_num):
+                        coord_loss += sum(delta[b, h, w, k*box_info_len :
+                                k*box_info_len + 4])
+                        object_loss += delta[b, h, w, k*box_info_len + 4]
+                        class_loss += sum(delta[b, h, w, k*box_info_len+5:])
+
+        tf.summary.scalar('coord_loss', tf.constant(coord_loss, tf.float32))
+        tf.summary.scalar('object_loss', tf.constant(object_loss, tf.float32))
+        tf.summary.scalar('class_loss', tf.constant(class_loss, tf.float32))
+
+        delta = delta.reshape((batch_size, -1))
+
+        delta = np.sum(delta, axis = 1)
+
+        return delta
 
 
-        return np.square(delta)
 
-
-
-    def loss(self, predicts, labels, seen):
+    def loss(self, predicts, labels, obj_num, seen):
         '''Calculate the training loss
 
         The explanation of args please see function "self.cal_loss_py"
         All args here are tensorflow objects
         '''
 
-        loss = tf.py_func(self.cal_loss_py, [predicts, labels, seen],
+        loss = tf.py_func(self.cal_loss_py, [predicts, labels, obj_num, seen],
                 [tf.float32])
 
         loss = tf.convert_to_tensor(loss)
+
+        # Average over all images
+        loss = tf.reduce_mean(loss)
+
+        tf.summary.scalar('weight_loss', tf.add_n(tf.get_collection('losses')))
+
+        tf.add_to_collection('losses', loss)
         
-        return loss
+        return tf.add_n(tf.get_collection('losses'), name='total_loss')
 

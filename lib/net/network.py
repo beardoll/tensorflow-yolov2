@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 import reorg_layer.reorg_op as reorg_op
 import reorg_layer.reorg_op_grad
-
+from config.config import cfg
 
 DEFAULT_PADDING = 'SAME'
 
@@ -81,6 +81,31 @@ class Network(object):
     def make_var(self, name, shape, initializer=None, trainable=True):
         return tf.get_variable(name, shape, initializer=initializer, trainable=trainable)
 
+    def _variable_with_weight_decay(self, name, shape, initializer, wd, trainable):
+        '''Initialize variables with weight decay
+
+        Args:
+            name: name of the variable
+            shape: shape of variable ,list of ints
+            initializer: initializer for varible (always truncated norm dist)    
+            wd: add L2-loss decay multiplied by this float. If None, weight
+            decay is not added for this variable
+            trainable: whether this variable can be trained
+        
+        Returns:
+            Variable Tensor
+        '''
+
+        var = tf.get_variable(name, shape, initializer=initializer, trainable =
+                trainable)
+
+        weight_decay = tf.multiply(tf.nn.l2_loss(var), wd,
+                name='weight_loss')
+        tf.add_to_collection('losses', weight_decay)
+
+        return var
+
+
     def validate_padding(self, padding):
         assert padding in ('SAME', 'VALID')
 
@@ -96,7 +121,13 @@ class Network(object):
         with tf.variable_scope(name) as scope:
 
             init_weights = tf.truncated_normal_initializer(0.0, stddev=0.01)
-            kernel = self.make_var('weights', [k_h, k_w, c_i/group, c_o], init_weights, trainable)
+            
+            if cfg.TRAIN.has_key('DECAY'):
+                # Using weight_decay
+                kernel = self._variable_with_weight_decay('weights', [k_h, k_w,
+                    c_i/group, c_o], init_weights, cfg.TRAIN.DECAY, trainable)
+            else:
+                kernel = self.make_var('weights', [k_h, k_w, c_i/group, c_o], init_weights, trainable)
 
             if group==1:
                 conv = convolve(input, kernel)
@@ -107,7 +138,7 @@ class Network(object):
                 conv = tf.concat(3, output_groups)
             
             if batchnorm:
-                # apply batch normalization
+                # Apply batch normalization
                 conv = self.batch_normalization(conv,
                         is_training=self.is_training, name = name, is_conv_out=True,
                         decay=0.999)
@@ -189,9 +220,16 @@ class Network(object):
                 feed_in, dim = (input, int(input_shape[-1]))
 
             init_weights = tf.truncated_normal_initializer(0.0, stddev=0.01)
-            init_biases = tf.constant_initializer(0.0)
 
-            weights = self.make_var('weights', [dim, num_out], init_weights, trainable)
+            if cfg.TRAIN.has_key('DECAY'):
+                # Using weight decay
+                weights = self._variable_with_weight_decay('weights', [dim,
+                    num_out], init_weights, cfg.TRAIN.DECAY, trainable)
+
+            else:
+                weights = self.make_var('weights', [dim, num_out], init_weights, trainable)
+            
+            init_biases = tf.constant_initializer(0.0)
             biases = self.make_var('biases', [num_out], init_biases, trainable)
 
             op = tf.nn.relu_layer if relu else tf.nn.xw_plus_b

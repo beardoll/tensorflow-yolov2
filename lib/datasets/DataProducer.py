@@ -2,7 +2,7 @@ import cv2
 from config.config import cfg
 import os
 import numpy as np
-import blob
+import glob
 
 class DataProducer(object):
     '''Pipeline for loading batch data.
@@ -21,10 +21,14 @@ class DataProducer(object):
         Args:
             image_set: mark the property of data, value is 'train' or 'test'.    
         '''
+        self.__config = {'data_argument': data_argument,
+                         'screen'       : True,
+                         'image_ext'    : '.png'
+                         }
         self.__image_set = image_set
         # Path for images and annotations
-        self.__data_path = os.path.join(cfg.DATA_DIR, 'image_set')
-        self.__image_names, self.__boxes = self.read_annotations()
+        self.__data_path = os.path.join(cfg.DATA_DIR, image_set)
+        self.__image_names, self.__boxes, self.__obj_num = self.read_annotations()
         self.__classes = cfg.TRAIN.CLASSES
         self.__class_to_ind = dict(zip(self.__classes,
             xrange(len(self.__classes))))
@@ -38,10 +42,6 @@ class DataProducer(object):
                     normalized
             image_ext: 'jpg' or 'png'
         '''
-        self.__config = {'data_argument': data_argument,
-                         'screen'       : True,
-                         'image_ext'    : 'png'
-                         }
 
     def read_annotations(self):
         '''Read annotation files
@@ -59,26 +59,32 @@ class DataProducer(object):
 
         image_names = []
         boxes = []
+        obj_num = []
         for file_name in filelist:
             name = file_name.split('/')[-1]
             current_boxes = []
-            with open(filename, 'r') as file_to_read:
+            with open(file_name, 'r') as file_to_read:
                 object_num = 0
                 line = file_to_read.readline()
                 while line:
-                    if object_num >= 30:
+                    if object_num >= cfg.TRAIN.MAX_OBJ:
                         # We constrain the maximum object number
                         break
 
-                    if self.__config.screen == True:
+                    if self.__config['screen'] == True:
                         cls, xc, yc, w, h = line.split()
+                        cls = int(cls)
+                        xc = float(xc)
+                        yc = float(yc)
+                        w = float(w)
+                        h = float(h)
                         object_num += 1
                         current_boxes.append([cls, xc, yc, w, h])
                         line = file_to_read.readline()
                     else:
                         # Here we only support KITTI format
                         nn = os.path.join(self.__data_path, name +
-                                self.__image_ext)
+                                self.__config['image_ext'])
                         assert os.path.exists(nn), 'Image path {} does not \
                             exists!'.format(nn)
 
@@ -102,6 +108,7 @@ class DataProducer(object):
                             y1 = float(y1)
                             x2 = float(x2)
                             y2 = float(y2)
+
                             cls = self.__class_to_ind[object_name]
                             xcenter = (x1 + x2) * 1.0 / 2 / w
                             ycenter = (y1 + y2) * 1.0 / 2 / h
@@ -113,24 +120,26 @@ class DataProducer(object):
                                 current_boxes.append([cls, xcenter, ycenter,
                                     box_w, box_h])
                                 object_num += 1
-                            
+
                             line = file_to_read.readline()
 
                 if object_num != 0:
-                    image_name.append(name + self.__image_ext)
+                    name = name.split('.')[0]
+                    image_names.append(name + self.__config['image_ext'])
                     boxes.append(current_boxes)
-        
-        return image_names, boxes
+                    obj_num.append(object_num)
+        return image_names, boxes, obj_num
 
     def __shuffle_inds(self):
         '''Randomly permute the training data
 
         '''
-        self.__perm = np.random.permutation(np.range(len(image_names)))
+        self.__perm = np.random.permutation(range(len(self.__image_names)))
+        self.__perm = np.array(self.__perm, dtype=np.int)
         self.__cur = 0
 
     def __get_next_batch_inds(self):
-        if self.__cur + cfg.TRAIN.BATCH >= len(image_names):
+        if self.__cur + cfg.TRAIN.BATCH >= len(self.__image_names):
             self.__shuffle_inds()
 
         inds = self.__perm[self.__cur: self.__cur + cfg.TRAIN.BATCH]
@@ -145,44 +154,42 @@ class DataProducer(object):
             w, h: The required image size
 
         Returns:
-            batch_data: A dictionary, includes images and corresponding boxes,
-                        images and boxes are all normalized
-
+            images_array, labels_array: float32 ndarray
+            obj_num_array: indicate the number of objects for each image
         '''
         inds = self.__get_next_batch_inds()
-        images_array = []
-        boxes_array = []
+        images_array = np.zeros((cfg.TRAIN.BATCH, h, w, 3))
+        boxes_array = np.zeros((cfg.TRAIN.BATCH, cfg.TRAIN.MAX_OBJ, 5))
+        obj_num_array = np.zeros(cfg.TRAIN.BATCH, dtype=np.int)
+        i = 0
         for index in inds:
-            name = image_names[index]
+            name = self.__image_names[index]
             name = os.path.join(self.__data_path, name)
             assert os.path.exists(name), 'Image path {} does not exist!'\
                     .format(name)
 
-            cur_image = cv2.imread(image_path)
+            image = cv2.imread(name)
 
             # Transform BGR to RGB, and normalize the pixels
             cur_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             cur_image = np.array(cur_image, dtype=np.float32)
             cur_image /= 255.0
 
-            cur_boxes = boxes[index]
-
-            if self.__config.data_argument == True:
+            cur_boxes = self.__boxes[index]
+    
+            if self.__config['data_argument'] == True:
                 cur_image, cur_boxes = self.process_image(cur_image, \
-                        cur_boxes, sw, sizedh)
+                        cur_boxes, w, h)
             else:
                 cur_image = cv2.resize(cur_image, (w, h))
             
-            images_array.append(cur_image)
-            boxes_array.append(cur_boxes)
+            images_array[i,:] = cur_image
+            obj_num_array[i] = self.__obj_num[index]
 
-        images_array = np.array(images_array)
-        boxes_array = np.array(boxes_array)
-        batch_data = {}
-        batch_data.images = images_array
-        batch_data.boxes = boxes_array
-        
-        return batch_data
+            boxes_array[i, 0:obj_num_array[i], :] = cur_boxes
+            i = i + 1
+
+        return images_array, boxes_array, obj_num_array
 
     def test_process(self, image_path, boxes):
         '''Test the preprocess for image and boxes
@@ -249,6 +256,7 @@ class DataProducer(object):
                 int(y2)), (0, 255, 0), 2)
 
         print "The preprocessed image is stored in 'test.png'"
+        
         cv2.imwrite("test.png", processed_image)
 
 
@@ -327,9 +335,6 @@ class DataProducer(object):
         # Resize the origin image to (nh, nw) size
         sized_image = cv2.resize(image, (nw, nh))
 
-        print("Shape of sized_image is: {}x{}".format(sized_image.shape[0], 
-            sized_image.shape[1]))
-        
         # Suppose nh<sized_h and nw<sized_w, if the deviated value dy,dx are zero,
         # then the smaller image (nh, nw) will be put in the left-top corner
         # of processed_image. So "dy, dx" decide the offset within image 
@@ -443,8 +448,8 @@ class DataProducer(object):
             box_height  = box_bottom - box_top
 
             # Split those boxes with 0 length
-            if(box_height * sized_h < 25 or box_width == 0):
-                continue
+            #if(box_width == 0):
+            #    continue
 
             processed_boxes.append([box[0], box_xcenter, box_ycenter,
                 box_width, box_height])
