@@ -18,7 +18,7 @@ cfg = __C
 __C.TRAIN = edict()
 
 # Batch size
-__C.TRAIN.BATCH = 8
+__C.TRAIN.BATCH = 16
 
 # Learning rate
 __C.TRAIN.LEARNING_RATE = 0.001

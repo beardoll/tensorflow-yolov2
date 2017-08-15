@@ -21,7 +21,7 @@ class DataProducer(object):
         Args:
             image_set: mark the property of data, value is 'train' or 'test'.    
         '''
-        self.__config = {'data_argument': data_argument,
+        self.__config = {'data_argument': False,
                          'screen'       : True,
                          'image_ext'    : '.png'
                          }
@@ -162,6 +162,7 @@ class DataProducer(object):
         boxes_array = np.zeros((cfg.TRAIN.BATCH, cfg.TRAIN.MAX_OBJ, 5))
         obj_num_array = np.zeros(cfg.TRAIN.BATCH, dtype=np.int)
         i = 0
+        retain = []
         for index in inds:
             name = self.__image_names[index]
             name = os.path.join(self.__data_path, name)
@@ -185,6 +186,7 @@ class DataProducer(object):
             
             images_array[i,:] = cur_image
             obj_num_array[i] = self.__obj_num[index]
+
 
             boxes_array[i, 0:obj_num_array[i], :] = cur_boxes
             i = i + 1
@@ -411,7 +413,6 @@ class DataProducer(object):
         box_x_scale = nw * 1.0 / sized_w
         box_y_scale = nh * 1.0 / sized_h
 
-
         processed_boxes = []
         for box in boxes:
             box_left   = box[1] - box[3] / 2.0
@@ -448,8 +449,7 @@ class DataProducer(object):
             box_height  = box_bottom - box_top
 
             # Split those boxes with 0 length
-            #if(box_width == 0):
-            #    continue
+            # .............
 
             processed_boxes.append([box[0], box_xcenter, box_ycenter,
                 box_width, box_height])

@@ -109,7 +109,8 @@ class SolverWrapper(object):
                         # In the rest procedure of training, we use the
                         # maximum resolution 608 x 608
                         dim = 608
-
+                    
+                    dim = 416
                     print "Resize image to: %d x %d"%(dim, dim)
 
                 images, labels, obj_num = data_producer.get_batch_data(dim, dim)
@@ -117,17 +118,19 @@ class SolverWrapper(object):
                 images = np.array(images, dtype = np.float32)
                 labels = np.array(labels, dtype = np.float32)
 
-                lr = 0.01
+                lr = 0.001
                 if iteration in cfg.STEP_SIZE:
                     pos = cfg.STEP_SIZE.index(iteration)
                     lr = lr * pow(0.1, pos+1)
 
                 print "Iteration: %d, doing training..."%(iteration+1)
-                total_loss, _ = sess.run([total_loss, train_op], feed_dict
+                total_loss2, _ = sess.run([total_loss, train_op], feed_dict
                         = {self.__net.data: images, labels_placeholder:
                             labels, seen_placeholder:seen,
                             obj_num_placeholder: obj_num,
                             lr_placeholder: lr})
+
+                print "The training loss is %f"%(total_loss2)
 
 
                 if (iteration+1) % 100 == 0:

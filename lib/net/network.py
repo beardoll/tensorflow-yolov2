@@ -38,7 +38,7 @@ class Network(object):
     def setup(self):
         raise NotImplementedError('Must be subclassed.')
 
-    def load(self, data_path, session, ignore_missing=True):
+    def load(self, data_path, session, ignore_missing=False):
         data_dict = np.load(data_path).item()
         for key in data_dict:
             with tf.variable_scope(key, reuse=True):
@@ -101,7 +101,7 @@ class Network(object):
 
         weight_decay = tf.multiply(tf.nn.l2_loss(var), wd,
                 name='weight_loss')
-        tf.add_to_collection('losses', weight_decay)
+        #tf.add_to_collection('losses', weight_decay)
 
         return var
 

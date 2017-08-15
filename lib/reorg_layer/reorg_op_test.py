@@ -93,6 +93,7 @@ def backward_test():
     
         print(sess.run(y))
 
+
 if __name__ == '__main__':
     #forward_test()
     backward_test()

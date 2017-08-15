@@ -14,18 +14,11 @@ def train():
 
     net = YOLOv2_net(is_training=True)
 
-    predicts = np.ones((8, 19, 19, 40), np.float32)
-    labels = np.ones((8, 30, 5), np.float32) * 0.5
-    obj_num = np.ones(8, np.int)
-    seen = 100
-
-    net.cal_loss_py(predicts, labels, obj_num, seen)
-
-    #gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.8)
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.8)
     
-    #sw = SolverWrapper(net, 'train', pretrained_model)
+    sw = SolverWrapper(net, 'train', pretrained_model)
     
-    #sw.train_net()
+    sw.train_net()
 
 
 if __name__ == '__main__':
