@@ -11,7 +11,7 @@ class SolverWrapper(object):
     Snapshot files will be generated and stored
     '''
 
-    def __init__(self, network, image_set, pretrained_model = None):
+    def __init__(self, image_set, pretrained_model = None):
         '''Initialize solver wrapper
 
         Args:
@@ -20,7 +20,6 @@ class SolverWrapper(object):
             pretrained_model: file format of '.npy' or '.ckpt'
         '''
 
-        self.__net = network
         self.__pretrained_model = pretrained_model
         self.__image_set = image_set
 
@@ -64,12 +63,11 @@ class SolverWrapper(object):
             labels_placeholder = tf.placeholder(tf.float32, shape=(None,
                 cfg.TRAIN.MAX_OBJ, 5))
             seen_placeholder = tf.placeholder(tf.int64, shape=())
-            obj_num_placeholder = tf.placeholder(tf.int64, shape=(None, ))
 
+            self.__net = YOLOv2_net(labels_placeholder, seen_placeholder, True)
 
-            predicts = self.__net.get_output('region30')
-            total_loss = self.__net.loss(predicts, labels_placeholder,
-                    obj_num_placeholder, seen_placeholder)
+            deltas = self.__net.get_output('region31')
+            total_loss = tf.reduce_mean(tf.squaure(deltas))
 
             lr_placeholder = tf.placeholder(tf.float32, shape=())
 
@@ -79,7 +77,6 @@ class SolverWrapper(object):
 
             train_op = tf.train.MomentumOptimizer(lr_placeholder,
                     momentum).minimize(total_loss, global_step = global_step)
-
 
             sess.run(tf.global_variables_initializer())
 
@@ -98,7 +95,6 @@ class SolverWrapper(object):
 
             self.saver = tf.train.Saver(max_to_keep=100)
 
-            print('Training Executing!!')
             seen = 0
 
             for iteration in range(cfg.TRAIN.MAX_ITERS):
@@ -118,19 +114,23 @@ class SolverWrapper(object):
                 images = np.array(images, dtype = np.float32)
                 labels = np.array(labels, dtype = np.float32)
 
-                lr = 0.001
+                lr = 0.01
                 if iteration in cfg.STEP_SIZE:
                     pos = cfg.STEP_SIZE.index(iteration)
                     lr = lr * pow(0.1, pos+1)
 
+
                 print "Iteration: %d, doing training..."%(iteration+1)
+                
+                timer.tic()
                 total_loss2, _ = sess.run([total_loss, train_op], feed_dict
                         = {self.__net.data: images, labels_placeholder:
                             labels, seen_placeholder:seen,
-                            obj_num_placeholder: obj_num,
                             lr_placeholder: lr})
 
-                print "The training loss is %f"%(total_loss2)
+                timer.toc()
+
+                print "The training loss is %f, time comsuming: %f"%(total_loss2, timer.average_time)
 
 
                 if (iteration+1) % 100 == 0:

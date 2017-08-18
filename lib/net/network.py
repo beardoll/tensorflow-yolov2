@@ -2,6 +2,9 @@ import numpy as np
 import tensorflow as tf
 import reorg_layer.reorg_op as reorg_op
 import reorg_layer.reorg_op_grad
+import region_layer.region_op as region_op
+import region_layer.region_op_grad
+
 from config.config import cfg
 
 DEFAULT_PADDING = 'SAME'
@@ -253,6 +256,13 @@ class Network(object):
     @layer
     def reorg(self, input, stride, name):
         return reorg_op.reorg(input, stride, name=name)
+
+    @layer
+    def region(self, input, labels, seen):
+        return region_op.region(input, labels, cfg.TRAIN.ANCHORS, cfg.NOOBJECT_SCALE, 
+                cfg.OBJECT_SCALE, cfg.COORD_SCALE, cfg.CLASS_SCALE,
+                len(cfg.TRAIN.CLASSES), cfg.TRAIN.BOX_NUM, seen,
+                cfg.TRAIN.THRESH)
 
     def batch_normalization(self, input, is_training, name, 
             is_conv_out=True, decay = 0.999):

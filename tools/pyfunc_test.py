@@ -1,6 +1,12 @@
 import tensorflow as tf
 import numpy as np
 
+'''Test the py_func api in tensorflow
+
+py_func is a wrapper for embedding python op in tensorflow graph
+However, py_func cannot feed back gradients...
+'''
+
 def add_two_vector(a, b):
     c = np.zeros((a.shape[0]), dtype=np.float32)
     for i in range(a.shape[0]):

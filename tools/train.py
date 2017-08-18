@@ -12,11 +12,9 @@ def train():
     assert os.path.exists(pretrained_model), \
             'Model path {} does not exist!'.format(pretrained_model)
 
-    net = YOLOv2_net(is_training=True)
-
     gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.8)
     
-    sw = SolverWrapper(net, 'train', pretrained_model)
+    sw = SolverWrapper('train', pretrained_model)
     
     sw.train_net()
 

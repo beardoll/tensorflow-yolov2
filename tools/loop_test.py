@@ -1,5 +1,11 @@
 import tensorflow as tf
 
+'''Test the while_loop api in tensorflow
+
+We construct 3 loops, and try to get the times of loop
+'''
+
+
 def body(loop1, loop2, loop3, stop1, stop2, stop3, i):
     return loop1, loop2, loop3+1, stop1, stop2, stop3, i+1
 
