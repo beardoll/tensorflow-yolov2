@@ -5,7 +5,7 @@ import numpy as np
 import copy
 
 class YOLOv2_net(Network):
-    def __init__(self, labels, seen, is_training, trainable=True):
+    def __init__(self, labels = None, seen = None, is_training = True, trainable=True):
         self.inputs = []
         self.data = tf.placeholder(tf.float32, shape=[None, None, None, 3])
         self.layers = dict({'data': self.data})
@@ -52,6 +52,9 @@ class YOLOv2_net(Network):
              .concat(axis=3, name='concate28')
              .conv(3, 3, 1024, 1, 1, name='conv29', batchnorm=True)
              .conv(1, 1, self.num_outputs, 1, 1, name='conv30', 
-                 activation='linear', batchnorm=False)
-             .region(self.labels, self.seen, name='region31'))
+                 activation='linear', batchnorm=False))
+
+        if self.is_training == True:
+            (self.feed('conv30')
+                 .region(self.labels, self.seen, name='region31'))
 

@@ -1,7 +1,7 @@
 import tensorflow as tf
 import os.path as osp
 import numpy as np
-import os
+#import os
 from config.config import cfg
 
 #pwd = os.getcwd()

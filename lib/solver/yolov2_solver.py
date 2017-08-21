@@ -4,6 +4,7 @@ import numpy as np
 import os
 from datasets.DataProducer import DataProducer
 from utils.timer import Timer
+from net.yolov2_net import YOLOv2_net
 
 class SolverWrapper(object):
     '''Solver wrapper for training and testing yolov2 network
@@ -22,6 +23,7 @@ class SolverWrapper(object):
 
         self.__pretrained_model = pretrained_model
         self.__image_set = image_set
+        self.__output_dir = cfg.TRAIN.TRAINED_DIR
 
     def snapshot(self, sess, iter):
         '''Take a snapshot of the network
@@ -36,7 +38,7 @@ class SolverWrapper(object):
             os.makedirs(self.__output_dir)
 
         # The saved filename
-        infix = ('_' + cfg.TRAIN.SNAPSHOT_INFIX if cfg.TRAIN.SHAPSHOT_INFIX !=
+        infix = ('_' + cfg.TRAIN.SNAPSHOT_INFIX if cfg.TRAIN.SNAPSHOT_INFIX !=
                 '' else '')
         filename = (cfg.TRAIN.SNAPSHOT_PREFIX + infix +
                 '_iter_{:d}'.format(iter + 1) + '.ckpt')
@@ -62,12 +64,17 @@ class SolverWrapper(object):
             
             labels_placeholder = tf.placeholder(tf.float32, shape=(None,
                 cfg.TRAIN.MAX_OBJ, 5))
-            seen_placeholder = tf.placeholder(tf.int64, shape=())
+            seen_placeholder = tf.placeholder(tf.int32, shape=())
 
             self.__net = YOLOv2_net(labels_placeholder, seen_placeholder, True)
 
             deltas = self.__net.get_output('region31')
-            total_loss = tf.reduce_mean(tf.squaure(deltas))
+            total_loss = tf.reduce_mean(tf.reduce_sum(0.5 * tf.square(deltas),
+                axis=[1, 2, 3]))
+
+            #total_loss = tf.reduce_sum(0.5 * tf.square(deltas))
+            
+                #total_loss += tf.add_n(tf.get_collection('losses'))
 
             lr_placeholder = tf.placeholder(tf.float32, shape=())
 
@@ -81,17 +88,17 @@ class SolverWrapper(object):
             sess.run(tf.global_variables_initializer())
 
             # Load pretrained variables
-            if self.__pretrained_model is None:
+            if self.__pretrained_model is not None:
                 print('Loading pretrained model weights from \
                     {:s}').format(self.__pretrained_model)
 
                 self.__net.load(self.__pretrained_model, sess)
 
-            summary_op = tf.summary.merge_all()
-            summary_writer = tf.summary.FileWriter(cfg.TRAIN.SUMMARY_DIR,
-                    sess.graph)
+            #summary_op = tf.summary.merge_all()
+            #summary_writer = tf.summary.FileWriter(cfg.TRAIN.SUMMARY_DIR,
+            #        sess.graph)
             
-            time = Timer()
+            timer = Timer()
 
             self.saver = tf.train.Saver(max_to_keep=100)
 
@@ -114,12 +121,13 @@ class SolverWrapper(object):
                 images = np.array(images, dtype = np.float32)
                 labels = np.array(labels, dtype = np.float32)
 
-                lr = 0.01
+                lr = 0.0001
                 if iteration in cfg.STEP_SIZE:
                     pos = cfg.STEP_SIZE.index(iteration)
-                    lr = lr * pow(0.1, pos+1)
+                    for j in range(pos+1):
+                        lr = lr * cfg.SCALES[j]
 
-
+                print '\n'
                 print "Iteration: %d, doing training..."%(iteration+1)
                 
                 timer.tic()
@@ -130,20 +138,18 @@ class SolverWrapper(object):
 
                 timer.toc()
 
-                print "The training loss is %f, time comsuming: %f"%(total_loss2, timer.average_time)
+                print "The training loss is %f, lr: %f, time comsuming: %f"%(total_loss2, lr, timer.average_time)
 
 
-                if (iteration+1) % 100 == 0:
-                    # Write summary for each 100 iterations
-                    summary_str = sess.run(summary_op,
-                            feed_dict={self.__net.data: images,
-                                labels_placeholder: labels,
-                                seen_placeholder:seen,
-                                obj_num_placeholder: obj_num,
-                                lr_placeholder: lr})
+                #if (iteration+1) % 100 == 1:
+                #    # Write summary for each 100 iterations
+                #    summary_str = sess.run(summary_op,
+                #            feed_dict={self.__net.data: images,
+                #                labels_placeholder: labels,
+                #                seen_placeholder:seen})
 
                 if (iteration+1) % cfg.TRAIN.SNAPSHOTS == 0:
-                    self.snap_shot(sess, iteration)
+                    self.snapshot(sess, iteration)
 
                 seen += cfg.TRAIN.BATCH
 

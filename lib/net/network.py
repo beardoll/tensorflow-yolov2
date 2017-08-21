@@ -104,7 +104,7 @@ class Network(object):
 
         weight_decay = tf.multiply(tf.nn.l2_loss(var), wd,
                 name='weight_loss')
-        #tf.add_to_collection('losses', weight_decay)
+        tf.add_to_collection('losses', weight_decay)
 
         return var
 
@@ -258,14 +258,13 @@ class Network(object):
         return reorg_op.reorg(input, stride, name=name)
 
     @layer
-    def region(self, input, labels, seen):
-        return region_op.region(input, labels, cfg.TRAIN.ANCHORS, cfg.NOOBJECT_SCALE, 
-                cfg.OBJECT_SCALE, cfg.COORD_SCALE, cfg.CLASS_SCALE,
-                len(cfg.TRAIN.CLASSES), cfg.TRAIN.BOX_NUM, seen,
-                cfg.TRAIN.THRESH)
+    def region(self, input, labels, seen, name):
+        return region_op.region(input, labels, cfg.TRAIN.ANCHORS, seen, cfg.TRAIN.NOOBJECT_SCALE, 
+                cfg.TRAIN.OBJECT_SCALE, cfg.TRAIN.COORD_SCALE, cfg.TRAIN.CLASS_SCALE,
+                len(cfg.TRAIN.CLASSES), cfg.TRAIN.BOX_NUM, cfg.TRAIN.THRESH, name=name)
 
     def batch_normalization(self, input, is_training, name, 
-            is_conv_out=True, decay = 0.999):
+            is_conv_out=True, decay = 0.99):
         '''Implementing batch normalization for training and testing
     
         Args:

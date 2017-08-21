@@ -11,13 +11,13 @@ def weight_variable(shape):
     initial = tf.truncated_normal(shape, stddev=0.1)
     return tf.Variable(initial)
 
-def bias_variable(shape):
+def bias_variable(shape, name):
     '''Bias initializer
 
     '''
 
     initial = tf.constant_initializer(0.0)
-    return tf.get_variable("bias", shape, initializer=initial, trainable=True)
+    return tf.get_variable(name, shape, initializer=initial, trainable=True)
 
 
 def conv2d(x, W):
@@ -67,12 +67,23 @@ def backward_test():
     
     # kernel size: 2x2, output channels: 4
     W = weight_variable([2, 2, 3, 4])
-    b = bias_variable([4])
-    
+    b = bias_variable([4], name='bias1')
+
+    W2 = weight_variable([2, 2, 4, 4])
+    b2 = bias_variable([4], name='bias2')
+
     # Output of convolutional layer has shape: [1, 4, 4, 4]
     h = conv2d(data, W)
     h = tf.nn.bias_add(h, b, name=None)
     
+    h = tf.nn.relu(h)
+
+    h = conv2d(h, W2)
+    h = tf.nn.bias_add(h, b2, name=None)
+
+    h = tf.nn.relu(h)
+
+
     # Output of reorg layer has shape: [1, 2, 2, 16]
     y = reorg_op.reorg(h, 2)
     
@@ -80,7 +91,7 @@ def backward_test():
     y_data = tf.convert_to_tensor(np.ones((1, 2, 2, 16)), dtype=tf.float32)
     
     loss = tf.reduce_mean(tf.square(y - y_data))
-    optimizer = tf.train.GradientDescentOptimizer(0.001)
+    optimizer = tf.train.GradientDescentOptimizer(0.01)
     train = optimizer.minimize(loss)
     
     init = tf.initialize_all_variables()

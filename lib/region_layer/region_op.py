@@ -1,8 +1,10 @@
 import tensorflow as tf
 import os.path as osp
 from config.config import cfg
+#import os
 
 #pwd = os.getcwd()
+
 #filename = osp.join(pwd, 'region.so')
 
 filename = osp.join(cfg.ROOT_DIR, 'lib', 'region_layer', 'region.so')

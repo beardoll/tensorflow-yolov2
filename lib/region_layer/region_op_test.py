@@ -63,8 +63,8 @@ def forward_test():
     label = tf.convert_to_tensor(label_array, dtype = tf.float32)
     anchor = tf.convert_to_tensor(anchor_array, dtype = tf.float32)
 
-    output = region_op.region(predict, label, anchor, noobject_scale,
-            object_scale, coord_scale, class_scale, class_num, box_num, seen, thresh)
+    output = region_op.region(predict, label, anchor, seen, noobject_scale,
+            object_scale, coord_scale, class_scale, class_num, box_num, thresh)
 
     init = tf.initialize_all_variables()
             
@@ -77,18 +77,19 @@ def forward_test():
 def backward_test():
     '''Test the backward pass of region layer
 
-    We construct one convolutional layer with linear activation function,
+    We construct two convolutional layer , the first one with relu activation
+    function, the second with linear activation function,
     and feed the activated values to the region layer to get predicts.
 
-    We set four labels centered in different grids in feature map, that means
-    we expect in each grid, we have exactly one predicted box to be close to
-    the corresponding label.
+    We set 1 label centered in left-top grid in feature map, that means
+    we expect in each left-top grid, we have exactly  one predicted box 
+    to be close to the corresponding label.
 
     We generate 3 boxes in each grid, and the class number is 2, then each box
     has information with length (2 + 5)
 
     We expected the average iou as 1, the class as 1, the confidence(obj) as 1
-    and the average obj(No obj) is 1/3, for only 1 box in 3 boxes should be
+    and the average obj(No obj) is 1/12, for only 1 box in 3 boxes should be
     responsible for the label. We also expect the recall as 1.0
 
     However, we cannot closly reach the targets, may be some problems still
@@ -98,15 +99,20 @@ def backward_test():
     image = np.random.rand(1, 2, 2, 3)
     label = np.zeros((1, 30, 5), dtype = np.float32)
     label[0, 0, :] = np.array([1, 0.25, 0.25, 0.5, 0.5])
-    label[0, 1, :] = np.array([0, 0.75, 0.25, 0.5, 0.5])
-    label[0, 2, :] = np.array([1, 0.25, 0.75, 0.5, 0.5])
-    label[0, 3, :] = np.array([0, 0.75, 0.75, 0.5, 0.5])
+    #label[0, 1, :] = np.array([0, 0.75, 0.25, 0.5, 0.5])
+    #label[0, 2, :] = np.array([1, 0.25, 0.75, 0.5, 0.5])
+    #label[0, 3, :] = np.array([0, 0.75, 0.75, 0.5, 0.5])
     
     data = tf.convert_to_tensor(image, dtype = tf.float32)
     target = tf.convert_to_tensor(label, dtype = tf.float32)
 
-    W = weight_variable([1, 1, 3, 21])
-    b = bias_variable([21], "bias1")
+    # First convolution layer
+    W = weight_variable([1, 1, 3, 12])
+    b = bias_variable([12], "bias1")
+
+    # Second convolution layer
+    W2 = weight_variable([1, 1, 12, 21])
+    b2 = bias_variable([21], "bias2")
 
     box_num = 3
 
@@ -116,7 +122,7 @@ def backward_test():
     object_scale = 5
     class_scale = 1
     coord_scale = 1
-    seen = 30000
+    seen = 30000   # Temporary disable the 'seen'
     thresh = 0.6
 
     anchor = [2, 0.3, 1, 0.5, 0.6, 0.3]
@@ -127,13 +133,25 @@ def backward_test():
 
     output1 = tf.nn.bias_add(output1, b, name=None)
    
-    output3 = region_op.region(output1, target, prior_size, noobject_scale,
-            object_scale, coord_scale, class_scale, class_num, box_num, seen, thresh)
+    output1 = tf.nn.relu(output1)
+
+
+    output2 = conv2d(output1, W2)
+
+    output2 = tf.nn.bias_add(output2, b2, name=None)
+
+    # Use linear output
+    # output2 = tf.nn.relu(output2)   
+    
+    output3 = region_op.region(output2, target, prior_size, seen, noobject_scale,
+            object_scale, coord_scale, class_scale, class_num, box_num, thresh)
 
     #output2 = tf.reshape(output2, [1, -1])
 
-    loss = tf.reduce_mean(tf.square(output3))
+    loss = tf.reduce_mean(tf.reduce_sum(0.5*tf.square(output3), axis=[1,2,3]))
 
+    # For deep network, the learning rate should not be too high
+    # In two-layers network, 0.01 seems work
     optimizer = tf.train.GradientDescentOptimizer(0.01)
 
     train = optimizer.minimize(loss)
@@ -143,9 +161,10 @@ def backward_test():
     with tf.Session() as sess:
         sess.run(init)
         for step in xrange(100000):
-            #out = sess.run([output2])
-            loss1, _ = sess.run([loss, train])
-            #print(loss1)
+            loss1, out, _ = sess.run([loss, output3, train])
+            print 'loss is: %f'%(loss1)
+            #print out
+            print '\n'
 
 
 

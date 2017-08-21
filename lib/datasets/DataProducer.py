@@ -145,6 +145,8 @@ class DataProducer(object):
         inds = self.__perm[self.__cur: self.__cur + cfg.TRAIN.BATCH]
         self.__cur += cfg.TRAIN.BATCH
 
+        #inds = xrange(4, cfg.TRAIN.BATCH+4)
+
         return inds
 
     def get_batch_data(self, w, h):

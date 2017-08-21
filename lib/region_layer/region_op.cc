@@ -17,11 +17,11 @@ REGISTER_OP("Region")
     .Attr("class_scale: int")
     .Attr("class_num: int")
     .Attr("box_num: int")
-    .Attr("seen: int")
     .Attr("thresh: float")
     .Input("predicts: T")
     .Input("labels: T")
     .Input("prior_size: T")
+    .Input("seen: int32")
     .Output("grad: T");
 
 REGISTER_OP("RegionGrad")
@@ -42,6 +42,9 @@ typedef struct{
 float overlap(float x1, float w1, float x2, float w2)
 {
     // Compute overlap of one axis(Not only the horizontal axis)
+    // x1, x2: centroid
+    // w1, w2: width/height
+    
     float l1 = x1 - w1 / 2;
     float l2 = x2 - w2 / 2;
     float left = l1 > l2 ? l1 : l2;
@@ -53,6 +56,8 @@ float overlap(float x1, float w1, float x2, float w2)
 
 float box_intersection(box a, box b)
 {
+    // Compute intersection area between box a and box b
+    // If there is no intersection in x/y axis, then return 0
     float w = overlap(a.x, a.w, b.x, b.w);
     float h = overlap(a.y, a.h, b.y, b.h);
     if(w < 0 || h < 0) return 0;
@@ -78,7 +83,9 @@ float logistic(float x) {
 box get_box(const float *array, float prior_w, float prior_h, int i, int j, int w, int h) {
     // The first 4 elements in array corresponds to the coords
     // w, h: width and height of feature map
-    // i, j: the left-top coord (from 0 -  w/h-1 )
+    // i, j: the left-top coord (from 0 -  w/h-1)
+    // get box (xc, yc, w, h)
+
     box b;
     float tx = array[0];
     float ty = array[1];
@@ -93,6 +100,25 @@ box get_box(const float *array, float prior_w, float prior_h, int i, int j, int 
     //        i, j, b.x, b.y, b.w, b.h, prior_w, prior_h);
     
     return b;
+}
+
+void softmax(const float *input, float *output, int n) {
+    // Calculate softmax(input) and store the results in output
+    int i;
+    float sum = 0;
+    float largest = -FLT_MAX;
+    for(i = 0; i < n; i++) {
+        if(input[i] > largest) largest = input[i];
+    }
+    for(i = 0; i < n; i++) {
+        float e = exp(input[i] - largest);
+        sum += e;
+        output[i] = e;
+    }
+    for(i = 0; i < n; i++) {
+        output[i] /= sum;
+    }
+
 }
 
 
@@ -123,16 +149,27 @@ float delta_coord(box truth_box, const float *predict_ptr, float *output, float 
 
 }
 
-void delta_class(const float *predict_ptr, float *output_ptr, int cls, int class_num, 
-        int class_scale, float &avg_cat){
+void delta_class(const float *predict_ptr, float *output_ptr, int cls, int class_num, float class_scale, float &avg_cat){
 
     // The function is for computing the classifcation loss
     // avg_cat: the confidence in correct class
 
+    float* softmax_pred = new float[class_num];
+
+    softmax(predict_ptr+5, softmax_pred, class_num);
+
+    // printf("class 0: %f, class 1: %f, true cls: %d\n", softmax_pred[0], softmax_pred[1], cls);
+
     for(int i = 0; i < class_num; i++) {
-        output_ptr[5 + i] = -class_scale * (((i == cls)? 1 : 0) - predict_ptr[5 + i]);
-        if(i == cls) avg_cat += predict_ptr[5 + i];
+        // softmax delta
+        output_ptr[5 + i] = -class_scale * (((i == cls)? 1 : 0) - softmax_pred[i]);
+        
+        //printf("class loss %d: %f\n", i, output_ptr[5+i]);
+        
+        if(i == cls) avg_cat += softmax_pred[i];
     }
+
+    delete softmax_pred;
 }
 
 template<typename Device>
@@ -143,7 +180,6 @@ public:
         OP_REQUIRES_OK(context, context->GetAttr("object_scale", &object_scale_));
         OP_REQUIRES_OK(context, context->GetAttr("coord_scale", &coord_scale_));
         OP_REQUIRES_OK(context, context->GetAttr("class_scale", &class_scale_));
-        OP_REQUIRES_OK(context, context->GetAttr("seen", &seen_));
         OP_REQUIRES_OK(context, context->GetAttr("class_num", &class_num_));
         OP_REQUIRES_OK(context, context->GetAttr("box_num", &box_num_));
         OP_REQUIRES_OK(context, context->GetAttr("thresh", &thresh_));
@@ -172,6 +208,10 @@ public:
                 errors::InvalidArgument("Prior size must be 2 times box_num"));
         auto prior_size_flat = prior_size.flat<float>();
 
+        const Tensor& seen_tensor = context->input(3);
+        const int *seen_ptr = seen_tensor.flat<int>().data();
+        seen_ = *seen_ptr;
+        
         // batch size
         int batch = predict.dim_size(0);
         // height of feature map
@@ -207,16 +247,20 @@ public:
         int box_num = box_num_;
         int class_num = class_num_;
         int box_info_len = 5 + class_num_;
-        int noobject_scale = noobject_scale_;
-        int object_scale = object_scale_;
-        int coord_scale = coord_scale_;
-        int class_scale = class_scale_;
+        
+        float object_scale = object_scale_;
+        float coord_scale = coord_scale_;
+        float noobject_scale = noobject_scale_;
+        float class_scale = class_scale_;
+        
         int seen = seen_;
         float thresh = thresh_;
         const float *prior_size_ptr = prior_size_flat.data();
 
         for(int g = 0; g < batch; g++) {
-            // For each batch
+            // The start index for labels
+            // each label has 5 element, (cls, xc, yc, w, h)
+            // each image has at most 30 labels
             int start_index_label = g * 5 * 30;
             for(int h = 0; h < height; h++) {
                 for(int w = 0; w < width; w++) {
@@ -224,16 +268,19 @@ public:
                         const float *predict_ptr = predict_flat.data();
                         const float *label_ptr = label_flat.data();
                         float *output_ptr = output.data();
-
+            
                         // start index for current box info
                         int start_index_pred = k*box_info_len + box_num * box_info_len * 
                             (w + width * (h + height * g));
                    
-
                         // lock the current pos for predict, output and label
                         predict_ptr += start_index_pred;  
                         output_ptr += start_index_pred;
                         label_ptr += start_index_label;
+                        
+                        for(int i = 0; i < box_info_len; i++) {
+                            output_ptr[i] = 0;
+                        }
 
                         float prior_w = prior_size_ptr[2*k];
                         float prior_h = prior_size_ptr[2*k + 1];
@@ -364,6 +411,8 @@ public:
 
                     // obj loss
                     output_ptr[4] = -object_scale * (iou - logistic(predict_ptr[4]));
+                    
+                    //printf("confidence loss: %f\n", output_ptr[4]);
 
                     int cls = int(label_ptr[0]);
 
@@ -373,18 +422,6 @@ public:
                     ++count;
                 }
             }
-
-            //const float *output_ptr = output.data();
-            //for(int h = 0; h < height; h++){
-            //    for(int w = 0; w < width; w++){
-            //        for(int i = 0; i < 7; i++) {
-            //            int index = i + 7*(w+width*h);
-            //            printf("%d:%f ", index, output_ptr[index]);
-            //        }
-            //        printf("\n");
-            //    }
-            //}
-
         }
         printf("Region Avg IOU: %f, Class: %f, Obj: %f, No Obj: %f, Avg Recall: %f, count: %d\n", 
                 avg_iou/count, avg_cat/count, avg_obj/count, avg_anyobj/(width*height*box_num*batch),
@@ -432,7 +469,7 @@ public:
         OP_REQUIRES(context, grad_data.dim_size(3) == box_num_ * (class_num_+ 5),
                 errors::InvalidArgument("Inavalid channels number in gradient data"));
         auto grad_data_flat = grad_data.flat<float>();
-   
+        
         
         // batch size
         int batch = bottom_data.dim_size(0);
@@ -468,6 +505,8 @@ public:
                     for(int k = 0; k < box_num; k++) {
                         const float *bottom_data_ptr = bottom_data_flat.data();
                         const float *grad_data_ptr = grad_data_flat.data();
+                        
+                        
                         float *output_data_ptr = output.data();
 
                         int start_index_pred = k * box_info_len + box_num * box_info_len * (

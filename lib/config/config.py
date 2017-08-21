@@ -18,7 +18,7 @@ cfg = __C
 __C.TRAIN = edict()
 
 # Batch size
-__C.TRAIN.BATCH = 16
+__C.TRAIN.BATCH = 8 
 
 # Learning rate
 __C.TRAIN.LEARNING_RATE = 0.001
@@ -27,7 +27,7 @@ __C.STEP_SIZE = [40000, 60000]
 __C.SCALES = [0.1, 0.1]
 
 # Max objects in a box
-__C.TRAIN.MAX_OBJ = 30
+__C.TRAIN.MAX_OBJ = 30   # Cannot change!!!
 
 # Iteration
 __C.TRAIN.MAX_ITERS = 80200
