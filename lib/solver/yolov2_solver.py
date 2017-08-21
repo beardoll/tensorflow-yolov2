@@ -113,7 +113,7 @@ class SolverWrapper(object):
                         # maximum resolution 608 x 608
                         dim = 608
                     
-                    dim = 416
+                    #dim = 416
                     print "Resize image to: %d x %d"%(dim, dim)
 
                 images, labels, obj_num = data_producer.get_batch_data(dim, dim)

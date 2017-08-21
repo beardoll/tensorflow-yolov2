@@ -21,10 +21,20 @@ class DataProducer(object):
         Args:
             image_set: mark the property of data, value is 'train' or 'test'.    
         '''
-        self.__config = {'data_argument': False,
+        
+        '''self.__config
+        keys:
+            data_argument: if True, then apply data argument
+            screen: if True, means the data has been preprocessed, then
+                    the bounding boxes info are [cls_index, xc, yc, w, h], and have been
+                    normalized
+            image_ext: 'jpg' or 'png'
+        '''
+        self.__config = {'data_argument': True,
                          'screen'       : True,
                          'image_ext'    : '.png'
                          }
+        
         self.__image_set = image_set
         # Path for images and annotations
         self.__data_path = os.path.join(cfg.DATA_DIR, image_set)
@@ -34,15 +44,7 @@ class DataProducer(object):
             xrange(len(self.__classes))))
         self.__shuffle_inds()
 
-        '''self.__config
-        keys:
-            data_argument: if True, then apply data argument
-            screen: if True, means the data has been preprocessed, then
-                    the bounding boxes info are [cls_index, xc, yc, w, h], and have been
-                    normalized
-            image_ext: 'jpg' or 'png'
-        '''
-
+        
     def read_annotations(self):
         '''Read annotation files
 
