@@ -1,7 +1,6 @@
 data/
 pretrained_model/
 output/
-tools/test_image
 
 *.pyc
 *.so

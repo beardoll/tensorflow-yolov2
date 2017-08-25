@@ -162,6 +162,11 @@ def draw_results(nms_BB, org_img, net_w, net_h):
 def correct_boxes(boxes, org_w, org_h, net_w, net_h):
     '''Correct boxes from w.r.t the net size -> w.r.t the original size
 
+    Note that the origin image has been resize to fit the input size of the
+    network while retaining the width/height ratio. And the content of image
+    has been put at the center of the resized image, and the two sides of
+    resized image are grey pixels (background)
+
     Args:
         boxes: 2-dimension ndarrays
         org_w, org_h: the original size of image
