@@ -112,19 +112,14 @@ def nms(BB, nms_threshold):
     return survived_BB
 
 
-def draw_results(nms_BB, org_img, net_w, net_h):
+def draw_results(nms_BB, org_img):
     '''Draw bbox of nms_BB in org_img
 
-    Note that the bbox has been resized to (net_h, net_w)
-    We should rescale bbox to size of org_img
-    If we don't keep the ratio of width/height of org_img in the process of
-    resize, maybe it's unneccesary to use 'net_w' and 'net_h'
-    
+    The bbox has been rescale to the relative shape w.r.t origin image shape
+
     Args:
         nms_BB: dict, with member 'box', 'confidence', 'cls'
         org_img: the original image
-        new_w, net_h: the original image has been reshaped to (new_w, net_h)
-                      and feed into the network 
 
     Returns:
         org_img: image with bbox and class info
@@ -142,6 +137,8 @@ def draw_results(nms_BB, org_img, net_w, net_h):
         class_name = classes[cls]
         rescale_factor = np.array([org_w, org_h, org_w, org_h])
         rescale_bbox = bbox * rescale_factor
+        
+        # left-top and right-down points
         x1 = rescale_bbox[0] - rescale_bbox[2] / 2.0
         y1 = rescale_bbox[1] - rescale_bbox[3] / 2.0
         x2 = rescale_bbox[0] + rescale_bbox[2] / 2.0
@@ -264,7 +261,7 @@ def detect(input_image, output_image, threshold):
     # Apply nms
     nms_BB = nms(BB, 0.3)
 
-    result_image = draw_results(nms_BB, image, NET_WIDTH, NET_HEIGHT)
+    result_image = draw_results(nms_BB, image)
     result_image = cv2.cvtColor(result_image, cv2.COLOR_RGB2BGR)
 
     cv2.imwrite(output_image, result_image)
