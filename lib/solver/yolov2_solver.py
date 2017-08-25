@@ -104,6 +104,7 @@ class SolverWrapper(object):
 
             seen = 0
 
+            lr = 0.0001
             for iteration in range(cfg.TRAIN.MAX_ITERS):
                 if iteration%10 == 0:
                     # Change the resolution of input images
@@ -121,11 +122,9 @@ class SolverWrapper(object):
                 images = np.array(images, dtype = np.float32)
                 labels = np.array(labels, dtype = np.float32)
 
-                lr = 0.0001
                 if iteration in cfg.STEP_SIZE:
                     pos = cfg.STEP_SIZE.index(iteration)
-                    for j in range(pos+1):
-                        lr = lr * cfg.SCALES[j]
+                    lr *= cfg.SCALES[pos]
 
                 print '\n'
                 print "Iteration: %d, doing training..."%(iteration+1)

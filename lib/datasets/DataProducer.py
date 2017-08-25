@@ -3,6 +3,7 @@ from config.config import cfg
 import os
 import numpy as np
 import glob
+from utils.process import resize_image_keep_ratio, resize_label_keep_ratio
 
 class DataProducer(object):
     '''Pipeline for loading batch data.
@@ -174,6 +175,7 @@ class DataProducer(object):
                     .format(name)
 
             image = cv2.imread(name)
+            org_h, org_w = image.shape[:2]
 
             # Transform BGR to RGB, and normalize the pixels
             cur_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -186,8 +188,10 @@ class DataProducer(object):
                 cur_image, cur_boxes = self.process_image(cur_image, \
                         cur_boxes, w, h)
             else:
-                cur_image = cv2.resize(cur_image, (w, h))
-            
+                cur_image = resize_image_keep_ratio(cur_image, w, h)
+                cur_boxes = resize_label_keep_ratio(cur_boxes, org_w, 
+                        org_h, w, h)
+
             images_array[i,:] = cur_image
             obj_num_array[i] = self.__obj_num[index]
 
