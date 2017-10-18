@@ -38,6 +38,4 @@ darknet格式
     * 先对图像的长宽比，大小进行扰动（`new_ratio`, `scale`），请注意这里`scale`是针对输出图像而言的，也就是根据训练所需的图像大小而言的。
     * 将扰动后的图像放入输出图像容器中，放置的位置是随机的，由`dx`和`dy`决定。下面我画一个图来说明，这里假设resize之后的图像比输出图像要大，因此我们只能裁出其中一部分来作为输出：
 
-<image align=center>
-![图像增强说明](intro_material/image_processing.png)
-</image>
+<div align=center><img width="150" height="150" src="intro_material/image_processing.png"/></div>
