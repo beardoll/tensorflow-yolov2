@@ -36,6 +36,7 @@ class Network(object):
         self.layers = dict(inputs)
         self.trainable = trainable
         self.is_training = is_training
+        self.pretrained_variable_list = []
         self.setup()
 
     def setup(self):
@@ -49,6 +50,7 @@ class Network(object):
                     try:
                         var = tf.get_variable(subkey)
                         session.run(var.assign(data_dict[key][subkey]))
+                        self.pretrained_variable_list.append(var)
                         print "assign pretrain model "+subkey+ " to "+key
                     except ValueError:
                         print "ignore "+key
@@ -104,7 +106,7 @@ class Network(object):
 
         weight_decay = tf.multiply(tf.nn.l2_loss(var), wd,
                 name='weight_loss')
-        tf.add_to_collection('losses', weight_decay)
+        tf.add_to_collection('weight_decay', weight_decay)
 
         return var
 

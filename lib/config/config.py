@@ -18,10 +18,11 @@ cfg = __C
 __C.TRAIN = edict()
 
 # Batch size
-__C.TRAIN.BATCH = 8 
+__C.TRAIN.BATCH = 32 
+__C.TRAIN.SUBDIVISION = 4 
 
 # Learning rate
-__C.TRAIN.LEARNING_RATE = 0.001
+__C.TRAIN.LEARNING_RATE = 0.01
 __C.TRAIN.MOMENTUM = 0.9
 __C.STEP_SIZE = [40000, 60000]
 __C.SCALES = [0.1, 0.1]
@@ -31,6 +32,7 @@ __C.TRAIN.MAX_OBJ = 30   # Cannot change!!!
 
 # Iteration
 __C.TRAIN.MAX_ITERS = 80200
+__C.TRAIN.ITER_THRESH = 80000
 
 # Weight decay
 __C.TRAIN.DECAY = 0.0005

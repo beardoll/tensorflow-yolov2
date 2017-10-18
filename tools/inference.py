@@ -5,10 +5,11 @@ from net.yolov2_net import YOLOv2_net
 from config.config import cfg
 from utils.process import softmax, logistic, iou, resize_image_keep_ratio
 import cv2
+import os
 
 # The network size, according to the input size of final hundreds of training
-NET_WIDTH = 416
-NET_HEIGHT = 416
+NET_WIDTH = 608
+NET_HEIGHT = 608
 
 def restore_boxes(boxes, map_w, map_h):
     '''Restore the boxes from (tx, ty, tw, th) to (xc, yc, w, h)
@@ -148,6 +149,7 @@ def draw_results(nms_BB, org_img):
         #print x1, y1, x2, y2
         print int(x1), int(y1), int(x2), int(y2)
         print confidence
+        print class_name
 
         org_img = cv2.rectangle(org_img, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255,
             0), 2)
@@ -219,7 +221,13 @@ def detect(input_image, output_image, threshold):
     else:
         print('Could not restore the pretrained_model!')
 
+    assert os.path.exists(input_image), \
+            "image path {} does not exist!".format(input_image)
+
     image = cv2.imread(input_image)
+
+    temp = np.array(image)
+
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     org_h, org_w = image.shape[:2]
 
@@ -267,8 +275,12 @@ def detect(input_image, output_image, threshold):
     cv2.imwrite(output_image, result_image)
 
 if __name__ == '__main__':
-    input_image = "web3.jpg"
-    output_image = "test.jpg"
+    #input_image = "./test_image/web4.jpg"
+    #output_image = "./test_image/test4.jpg"
+    
+    input_image = "004122.png"
+    output_image = "test.png"
+
 
     detect(input_image, output_image, 0.24)
 

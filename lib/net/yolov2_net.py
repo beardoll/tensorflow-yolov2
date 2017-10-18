@@ -14,6 +14,7 @@ class YOLOv2_net(Network):
         self.num_outputs = cfg.TRAIN.BOX_NUM * (len(cfg.TRAIN.CLASSES) + 5)
         self.labels = labels
         self.seen = seen
+        self.pretrained_variable_list = []
         self.setup()
 
     def setup(self):
