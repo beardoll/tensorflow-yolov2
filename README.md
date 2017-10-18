@@ -44,3 +44,5 @@ darknet格式
 
 ### Reorg层（也叫passthrough）
 <div align=center><img width="600" height="400" src="intro_material/reorg.png"/></div>
+
+`孙肇兴`
