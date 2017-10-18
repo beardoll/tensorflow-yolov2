@@ -36,6 +36,11 @@ darknet格式
 候选框的长宽，它们对以宽/高进行了归一化。所以在这个函数中我设置了两种读取annotation的方式，刚刚说的就是`screen=True`；而`screen=False`，则需要重新读取原始annotation文件。
 * 图像增强：
     * 先对图像的长宽比，大小进行扰动（`new_ratio`, `scale`），请注意这里`scale`是针对输出图像而言的，也就是根据训练所需的图像大小而言的。
-    * 将扰动后的图像放入输出图像容器中，放置的位置是随机的，由`dx`和`dy`决定。下面我画一个图来说明，这里假设resize之后的图像比输出图像要大，因此我们只能裁出其中一部分来作为输出：
+    * 将扰动后的图像放入输出图像容器中，放置的位置是随机的，由`dx`和`dy`决定。下面我画一个图来说明，这里假设resize之后的图像比输出图像要大，因此我们只能裁出其中一部分来作为输出（dx，dy都是负数）：
 <div align=center><img width="600" height="400" src="intro_material/image_processing.png"/></div>
-    * 然后是在HSV空间
+    * 然后是在HSV空间随机扰动hue, saturation以及exposure。那部分代码写得比较长，其实就是RGB->HSV->RGB的一个过程。
+    * 最后，根据对图像的扰动，对相应的gt_box也需要做相应的扰动。`box_x_scale`和`box_y_scale`是将`sized image`的量度转化到`processed image`中去，因为标签数据是以原始图像为基准进行归一化的，如上所述，
+现在是将resize之后的图像塞到输出图像中，因此bounding box的归一化也必须针对输出图像（processed image）。由此也可以推知`box_x_delta`和`box_y_delta`是如何计算的。
+
+### Reorg层（也叫passthrough）
+<div align=center><img width="600" height="400" src="intro_material/reorg.png/></div>
