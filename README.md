@@ -42,7 +42,15 @@ darknet格式
     * 最后，根据对图像的扰动，对相应的gt_box也需要做相应的扰动。`box_x_scale`和`box_y_scale`是将`sized image`的量度转化到`processed image`中去，因为标签数据是以原始图像为基准进行归一化的，如上所述，
 现在是将resize之后的图像塞到输出图像中，因此bounding box的归一化也必须针对输出图像（processed image）。由此也可以推知`box_x_delta`和`box_y_delta`是如何计算的。
 
-### Reorg层（也叫passthrough）
+### Reorg层（也叫passthrough层）
+这一层有点类似于GoogLeNet的inception，就是将来自不同分支的feature map按照channel轴拼接到一起，要求这些分支的feature map大小是一样的。Darknet的想法是把浅层特征和深层特征结合到一起，提高网络的表达能力。
+其中深层特征的feature map大小只有浅层特征的一半，因此需要将浅层特征的大小变为一半（长和宽, stride=2），思想是把相邻的元素分开放在不同的channel。我们用如下一张图来说明：
+
 <div align=center><img width="600" height="400" src="intro_material/reorg.png"/></div>
 
-`孙肇兴`
+具体的操作可以查看`reorg_op.cc`的`shard`部分。`shard`是个多线程管理模块，你可以不必知道它是如何运作的，只需要知道如何读取feature map某个位置的元素即可。在那里代码看起来很复杂，那是因为我
+是将darknet关于reorg层的实现[reorg_cpu](https://github.com/pjreddie/darknet/blob/master/src/blas.c)给照搬过来，前面已经说过darknet和tensorflow的blob数据格式是不一样的。对照着darknet的代码
+来看会比较好理解。
+
+从图中也可以看到，这样划分的方式似乎还是不太好。比如1，2，5，6应该分别放在四个不同的channel，但是darknet上实现的就是如图所示那样。
+
