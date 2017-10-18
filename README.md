@@ -57,5 +57,10 @@ darknet格式
 ### Region层
 这一层的功能主要是为了计算loss。总结一下大概是做了两件事情（region_op.cc）：
 * 对于每个predicted box，寻找与其最匹配的gt_box，并且计算overlap。若overlap > thresh，则暂时将confidence loss设为0；否则计算confidence loss = predicted_confidence - 0
+(因为这些box的confidence应该是0，也就是没有检测到任何目标)。
 * 对于每个gt_box，寻找与其overlap最大的predicted box（唯一），并且为该predicted box计算confidence loss, regression loss, classification loss等。也就是说，只有部分的predicted box
-会得到训练，而其余的摇摆人（虽然overlap > thresh，但是不跟gt_box绑定），则不计算loss。
+会得到训练，而其余的摇摆人（虽然overlap > thresh，但是不跟gt_box绑定），则不计算loss（也就是不对它们进行训练）。可以看出这是一种“精英训练”的策略。
+
+接下来说明一下loss是如何计算。我们首先关注一下最后的卷积层，`conv30`。这一层其实已经给出了预测结果。它有box_num * (class_num + 5)那么多个channel，其中`5`包含了：目标所属的类，目标的
+bounding box，每个box都有5+class_num那么多预测值。对于feature map中的每个像素点（对应于原图中的某一块区域，感受野），它都会产生box_num个box信息。参考论文可知，我们会预先对训练数据的bounding
+box
