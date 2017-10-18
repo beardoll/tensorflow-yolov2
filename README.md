@@ -43,4 +43,4 @@ darknet格式
 现在是将resize之后的图像塞到输出图像中，因此bounding box的归一化也必须针对输出图像（processed image）。由此也可以推知`box_x_delta`和`box_y_delta`是如何计算的。
 
 ### Reorg层（也叫passthrough）
-<div align=center><img width="600" height="400" src="intro_material/reorg.png/></div>
+<div align=center><img width="600" height="400" src="intro_material/reorg.png"/></div>
