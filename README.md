@@ -72,10 +72,13 @@ box进行聚类，得到box_num种bounding box的大小作为先验信息（长�
 在YOLOv2中，bounding box的值是经过归一化的，比如上图中的cx = 1，表示当前计算的网格相对于feature map在x轴上偏移了1个单位，1个单位的长度 = 图片宽度/网格数目。换言之，如果将bx乘以图像真实的宽度，
 就可以得到中心点对应于原图的真实位置。可以看到，bx与cx的值不会超过1（中心点就限制在当前网格内），所以需要限制预测值的范围。预测值tw和th可以认为是一个缩放比例。
 
-这里没有给出confidence的计算，实际上就是sigma(预测值)，也是一个[0, 1]范围内的数值。我们希望的是confidence * max_class_prob(各分类的最大概率) = iou(与最匹配的gt_box的overlap)。
+这里没有给出confidence的计算，实际上就是sigma(预测值)，也是一个[0, 1]范围内的数值。我们希望的是confidence = prob_obj(检测到物体为1，没检测到位0) * iou(与最匹配的gt_box的overlap)。
 
 对于classes的预测值，也是用sigma函数将其限制在[0, 1]范围内，在`region_op.cc`中可以看到（`softmax`函数）。
 
 tensorflow不允许修改feature map的输入像素值，所以可以看到我在多处地方都重新计算了预测值的softmax值。对于不同的loss，定义了不同的scale，可以在config文件中查看。
 
 关于BP计算：注意softmax函数求导值为f(x) * (1-f(x))，并且tensorflow返回的是“梯度”而不是“负梯度”，因此计算梯度时只需要计算“正梯度”值。
+
+### 训练
+
