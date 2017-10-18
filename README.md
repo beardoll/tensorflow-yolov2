@@ -35,4 +35,5 @@ darknet格式
 * function `read_annotations`: 由于我之前用darknet做训练时，按照其要求先将数据转化成[cls_idx, xc, yc, w, h]格式，这里cls_idx是目标所属的类对应的标号，xc, yc是bounding box的中心，w和h是
 候选框的长宽，它们对以宽/高进行了归一化。所以在这个函数中我设置了两种读取annotation的方式，刚刚说的就是`screen=True`；而`screen=False`，则需要重新读取原始annotation文件。
 * 图像增强：
-    * 先对图像的长宽比，大小进行扰动（`jitter`, `scale`）。
+    * 先对图像的长宽比，大小进行扰动（`new_ratio`, `scale`），请注意这里`scale`是针对输出图像而言的，也就是根据训练所需的图像大小而言的。
+    * 将扰动后的图像放入输出图像容器中，放置的位置是随机的，由`dx`和`dy`决定。下面我画一个图来说明，这里假设resize之后的图像比输出图像要大，因此我们只能裁出其中一部分来作为输出：
