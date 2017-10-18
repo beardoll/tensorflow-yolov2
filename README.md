@@ -63,4 +63,5 @@ darknet格式
 
 接下来说明一下loss是如何计算。我们首先关注一下最后的卷积层，`conv30`。这一层其实已经给出了预测结果。它有box_num * (class_num + 5)那么多个channel，其中`5`包含了：目标所属的类，目标的
 bounding box，每个box都有5+class_num那么多预测值。对于feature map中的每个像素点（对应于原图中的某一块区域，感受野），它都会产生box_num个box信息。参考论文可知，我们会预先对训练数据的bounding
-box
+box进行聚类，得到box_num种bounding box的大小作为先验信息（长，宽）。实际上，预测的bounding box的信息是针对于先验信息的偏移。可以用如下的图来解释：
+<div align=center><img width="600" height="400" src="intro_material/region.png"/></div>
