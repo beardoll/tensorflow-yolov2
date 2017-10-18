@@ -39,3 +39,5 @@ darknet格式
     * 将扰动后的图像放入输出图像容器中，放置的位置是随机的，由`dx`和`dy`决定。下面我画一个图来说明，这里假设resize之后的图像比输出图像要大，因此我们只能裁出其中一部分来作为输出：
 
 <div align=center><img width="600" height="400" src="intro_material/image_processing.png"/></div>
+
+    * 然后是在HSV空间
