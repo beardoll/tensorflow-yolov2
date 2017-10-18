@@ -54,3 +54,8 @@ darknet格式
 
 从图中也可以看到，这样划分的方式似乎还是不太好。比如1，2，5，6应该分别放在四个不同的channel，但是darknet上实现的就是如图所示那样。
 
+### Region层
+这一层的功能主要是为了计算loss。总结一下大概是做了两件事情（region_op.cc）：
+* 对于每个predicted box，寻找与其最匹配的gt_box，并且计算overlap。若overlap > thresh，则暂时将confidence loss设为0；否则计算confidence loss = predicted_confidence - 0
+* 对于每个gt_box，寻找与其overlap最大的predicted box（唯一），并且为该predicted box计算confidence loss, regression loss, classification loss等。也就是说，只有部分的predicted box
+会得到训练，而其余的摇摆人（虽然overlap > thresh，但是不跟gt_box绑定），则不计算loss。
