@@ -67,18 +67,22 @@ box进行聚类，得到box_num种bounding box的大小作为先验信息（长�
 
 <div align=center><img width="550" height="400" src="intro_material/region.png"/></div>
 
-在上图中，pw和ph是bounding box的先验宽高，tx和ty是预测的宽、高偏移量，sigma函数是指softmax函数，目的是为了将预测值限制在[0, 1]范围内。
+在上图中，pw和ph是bounding box的先验宽高，tx和ty是预测的宽、高偏移量，sigma函数是指losgistic函数(1/(1+exp(-x))，见`logistic`函数)，目的是为了将预测值限制在[0, 1]范围内。
 
 在YOLOv2中，bounding box的值是经过归一化的，比如上图中的cx = 1，表示当前计算的网格相对于feature map在x轴上偏移了1个单位，1个单位的长度 = 图片宽度/网格数目。换言之，如果将bx乘以图像真实的宽度，
 就可以得到中心点对应于原图的真实位置。可以看到，bx与cx的值不会超过1（中心点就限制在当前网格内），所以需要限制预测值的范围。预测值tw和th可以认为是一个缩放比例。
 
-这里没有给出confidence的计算，实际上就是sigma(预测值)，也是一个[0, 1]范围内的数值。我们希望的是confidence = prob_obj(检测到物体为1，没检测到位0) * iou(与最匹配的gt_box的overlap)。
+这里没有给出confidence的计算，实际上就是logistic(t0)，也是一个[0, 1]范围内的数值。我们希望的是confidence = prob_obj(检测到物体为1，没检测到位0) * iou(与最匹配的gt_box的overlap)。
 
-对于classes的预测值，也是用sigma函数将其限制在[0, 1]范围内，在`region_op.cc`中可以看到（`softmax`函数）。
+对于classes的预测值，是用softmax函数将其限制在[0, 1]范围内，在`region_op.cc`中可以看到（`softmax`函数）。
 
-tensorflow不允许修改feature map的输入像素值，所以可以看到我在多处地方都重新计算了预测值的softmax值。对于不同的loss，定义了不同的scale，可以在config文件中查看。
+tensorflow不允许修改feature map的输入像素值，所以可以看到我在多处地方都重新计算了预测值的logistic值。对于不同的loss，定义了不同的scale，可以在config文件中查看。
 
-关于BP计算：注意softmax函数求导值为f(x) * (1-f(x))，并且tensorflow返回的是“梯度”而不是“负梯度”，因此计算梯度时只需要计算“正梯度”值。
+注意，计算bounding box的loss时：实际上是计算logistic(tx), logistic(ty), tw, th以及t0的L2 loss，可以参考`delta_coord`函数；对于classification loss，计算的是交叉熵损失函数。
+具体而言，对于真实类别为i目标，关于第i类预测值的梯度为(1-softmax(prob_i))，对于其他类预测值的梯度为(0-softmax(prob_j))。可以参考[UFLDL](http://ufldl.stanford.edu/wiki/index.php/Softmax_Regression)
+中关于softmax函数的梯度计算，注意在`region`层中，没有可训练的参数theta。
+
+关于backward pass计算：logistic函数求导值为f(x) * (1-f(x))，并且tensorflow返回的是“梯度”而不是“负梯度”，因此计算梯度时只需要计算“正梯度”值。
 
 ### 训练
 
