@@ -124,4 +124,4 @@ bounding boxes，存放在`all_boxes[cls][image_name]`中：
 
 `_evaluate_mAP(self, classname)`: 先将该类所有的目标按confidence进行递减排序，然后confidence高者优先匹配gt_box。被匹配的gt_box不能被其他的predicted box匹配，这时
 那些predicted box就会被标记为fp。然后调用`_voc_ap(self, rec, prec, use_07_metric = True)`计算ap。具体请详细阅读代码，理解起来并不困难。（这部分其实来源于
-`Faster-RCNN_TF`工程）
+`faster-rcnn`工程）
