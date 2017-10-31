@@ -100,5 +100,8 @@ tensorflow不允许修改feature map的输入像素值，所以可以看到我�
 另外，tensorflow返回的是“梯度”而不是“负梯度”，因此计算梯度时只需要计算“正梯度”值。
 
 ### 训练
+训练采用的是单机多卡模式（data parallel）。只需要运行`tools`目录下的`train.py`文件，在文件开头的全局变量`DATASET`中你需要指定训练所使用的数据集。然后调用`lib/solver`
+中的`SolverWrapper`类，传入参数：
 
+    * wer 
 
