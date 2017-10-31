@@ -102,6 +102,9 @@ tensorflow不允许修改feature map的输入像素值，所以可以看到我�
 ### 训练
 训练采用的是单机多卡模式（data parallel）。只需要运行`tools`目录下的`train.py`文件，在文件开头的全局变量`DATASET`中你需要指定训练所使用的数据集。然后调用`lib/solver`
 中的`SolverWrapper`类，传入参数：
+* `imdb`: 由`factory`的`__sets[name]`提供。
+* `snapshot_infix`: 存放中间模型文件的倒数第二层目录，用于区分不同数据集所得模型的存放路径。
+* `pretrained_model`: 使用ImageNet训练过的base model。
 
-    * wer 
+关于单机多卡训练：参考`tensorflow-GoogLeNet`工程。
 
