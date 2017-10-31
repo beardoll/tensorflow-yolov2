@@ -2,7 +2,6 @@ import tensorflow as tf
 from config.config import cfg
 import numpy as np
 import os
-from datasets.DataProducer import DataProducer
 from utils.timer import Timer
 from net.yolov2_net import YOLOv2_net
 from utils.multigpu import average_gradients
@@ -13,18 +12,20 @@ class SolverWrapper(object):
     Snapshot files will be generated and stored
     '''
 
-    def __init__(self, image_set, pretrained_model = None):
+    def __init__(self, snapshot_infix, output_dir, pretrained_model = None):
         '''Initialize solver wrapper
 
         Args:
-            network: yolo network instance
-            image_set: 'train' or 'test'
+            imdb: class for datasets
+            snapshot_infix: infix for model file name
+            output_dir: directory for saving model files
             pretrained_model: file format of '.npy' or '.ckpt'
         '''
 
-        self.__pretrained_model = pretrained_model
-        self.__image_set = image_set
-        self.__output_dir = cfg.TRAIN.TRAINED_DIR
+        self._pretrained_model = pretrained_model
+        self._imdb = imdb
+        self_.snapshot_infix = snapshot_infix
+        self._output_dir = output_dir
 
     def snapshot(self, sess, iter):
         '''Take a snapshot of the network
@@ -33,14 +34,13 @@ class SolverWrapper(object):
             sess: session of tensorflow
             iter: the current global step
         '''
-        net = self.__net
+        net = self._net
         
-        if not os.path.exists(self.__output_dir):
-            os.makedirs(self.__output_dir)
+        if not os.path.exists(self._output_dir):
+            os.makedirs(self._output_dir)
 
         # The saved filename
-        infix = ('_' + cfg.TRAIN.SNAPSHOT_INFIX if cfg.TRAIN.SNAPSHOT_INFIX !=
-                '' else '')
+        infix = self._snapshot_infix
         filename = (cfg.TRAIN.SNAPSHOT_PREFIX + infix +
                 '_iter_{:d}'.format(iter + 1) + '.ckpt')
         filename = os.path.join(cfg.TRAIN.TRAINED_DIR, filename)
@@ -92,7 +92,7 @@ class SolverWrapper(object):
             gpu_options = gpu_options))
 
         # Producer for data
-        data_producer = DataProducer(self.__image_set)
+        data_producer = self._imdb
         
         # Momentum for SGD
         momentum = cfg.TRAIN.MOMENTUM
@@ -118,12 +118,12 @@ class SolverWrapper(object):
                             net = YOLOv2_net(y, seen)
 
                             if division_id == 0:
-                                self.__net = net   # For saving snapshots
+                                self._net = net   # For saving snapshots
                                 # Only load pretrained model once
-                                if self.__pretrained_model is not None:
+                                if self._pretrained_model is not None:
                                     print('Loading pretrained model weights from{:s}')\
-                                                    .format(self.__pretrained_model)
-                                    net.load(self.__pretrained_model, sess)
+                                                    .format(self._pretrained_model)
+                                    net.load(self._pretrained_model, sess)
                                     pretrained_list = net.pretrained_variable_list
                 
                             deltas = net.get_output('region31')

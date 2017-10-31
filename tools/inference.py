@@ -193,13 +193,16 @@ def correct_boxes(boxes, org_w, org_h, net_w, net_h):
     return boxes
 
 
-def detect(input_image, output_image, threshold):
+def detect(input_image, output_image, model, vis, threshold):
     '''Forward input_image to the yolov2 network to detect objects
 
     Args:
         input_image: absolute path for the image for detection
-        output_image: absolute path for the saving of resulted image
+        output_image: absolute path for the saving of resulted image (activated
+            while "vis == True")
+        model: the trained model for inference
         threshold: the minimum confidence that detects an object
+        vis: visible the results (store resulting image) or not
     '''
     
     net = YOLOv2_net(is_training=False, trainable=False)
@@ -239,7 +242,6 @@ def detect(input_image, output_image, threshold):
 
     predicts = sess.run(outputs, feed_dict={net.data: sized_image})
 
-   
     # We only use batch_size = 1
     predicts = np.squeeze(predicts, axis=0) 
 
@@ -269,18 +271,42 @@ def detect(input_image, output_image, threshold):
     # Apply nms
     nms_BB = nms(BB, 0.3)
 
-    result_image = draw_results(nms_BB, image)
-    result_image = cv2.cvtColor(result_image, cv2.COLOR_RGB2BGR)
+    if vis == True:
+        result_image = draw_results(nms_BB, image)
+        result_image = cv2.cvtColor(result_image, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(output_image, result_image)
 
-    cv2.imwrite(output_image, result_image)
+    return nms_BB
+
+def parse_args():
+    '''Parse input arguments
+    
+    '''
+    parser = argparse.ArgumentParser(description = 'Run inference for an image')
+    parser.add_argument('--input_image', dest='input_image',
+            help='the absolute path for input_image',
+            default=None, type=str)
+    parser.add_argument('--output_image', dest='output_image',
+            help='the absolute path for output_image',
+            default='../output/demo/test.jpg', type=str)
+
+    parser.add_argument('--model', dest='model',
+            help = 'the absolute path for model file',
+            default=cfg.TRAIN.TRAINED_DIR, type=str)
+
+    args = parser.parse_args()
+    return args
 
 if __name__ == '__main__':
-    #input_image = "./test_image/web4.jpg"
-    #output_image = "./test_image/test4.jpg"
+    args = parse_args()
     
-    input_image = "004122.png"
-    output_image = "test.png"
+    assert args.input_image is not None, \
+            'No input image for inference!'
+    
+    input_image = args.input_image
+    output_image = args.output_image
 
+    model = parser.model
 
-    detect(input_image, output_image, 0.24)
+    detect(input_image, output_image, model, True, 0.24)
 

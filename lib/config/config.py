@@ -62,15 +62,10 @@ __C.TRAIN.THRESH = 0.6
 __C.TRAIN.ANCHORS = [1.3221, 1.73145, 3.19275, 4.00944, 5.05587, \
                      8.09892, 9.47112, 4.84053, 11.2364, 10.0071]
 
-# Classes
-__C.TRAIN.CLASSES = ['Car', 'Pedestrian', 'Cyclist']
-__C.TRAIN.DONT_CARE = ['DontCare', 'Misc', 'Person_sitting', 'Truck', 'Tram']
-
 # Boxes per pixel of output feature map
 __C.TRAIN.BOX_NUM = 5
 
 # Snapshot filename
-__C.TRAIN.SNAPSHOT_INFIX = 'kitti'
 __C.TRAIN.SNAPSHOT_PREFIX = 'yolov2'
 
 
@@ -81,6 +76,10 @@ __C.DATA_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'data'))
 __C.PRETRAINED_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'pretrained_model'))
 __C.TRAIN.SUMMARY_DIR = osp.abspath(osp.join(__C.OUTPUT_DIR, 'summary'))
 __C.TRAIN.TRAINED_DIR = osp.abspath(osp.join(__C.OUTPUT_DIR, 'trained_model'))
+
+__C.TEST = edict()
+__C.TEST.OUTPUT_DIR = osp.abspath(osp.join(__C.OUTPUT_DIR, 'test'))
+
 
 def _merge_a_into_b(a, b):
     '''Merge config dictionary a into config dictionary b, clobbering the 
