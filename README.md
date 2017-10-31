@@ -104,7 +104,19 @@ tensorflow不允许修改feature map的输入像素值，所以可以看到我�
 中的`SolverWrapper`类，传入参数：
 * `imdb`: 由`factory`的`__sets[name]`提供。
 * `snapshot_infix`: 存放中间模型文件的倒数第二层目录，用于区分不同数据集所得模型的存放路径。
-* `pretrained_model`: 使用ImageNet训练过的base model。
+* `pretrained_model`: 使用ImageNet训练过的base model（绝对路径）。
 
 关于单机多卡训练：参考`tensorflow-GoogLeNet`工程。
 
+在训练的过程中，会不断地调整输入图像的大小（每10个batch调整一次，都是32的倍数），这是为了使得模型能够适应不同分辨率的图像输入。
+
+### 测试
+目前只写了关于`PASCAL_VOC`数据集的测试代码。
+
+在文件`tools/test.py`中，可以看到`test_net()`函数。该函数从数据集类中获取所有图像数据的绝对路径，并且对每一张图像调用`inference.py`中的`detect`函数，获取所有的predicted
+bounding boxes，存放在`all_boxes[cls][image_name]`中：
+
+`all_boxes[cls][image_name]`: 是一个以二维矩阵为元素的二维矩阵，每个元素代表的是`image_name`指定的图像中`cls`类的所有predicted bounding boxes。每个元素的每一行
+是`[xc, yc, w, h, confidence]`格式。
+
+在`lib/datasets/pascal_voc.py`中，重写了`imdb`的`evaluation_detections`函数。
