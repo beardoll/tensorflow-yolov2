@@ -86,15 +86,18 @@ box进行聚类，得到box_num种bounding box的大小作为先验信息（长�
 
 这里没有给出confidence的计算，实际上就是logistic(t0)，也是一个[0, 1]范围内的数值。我们希望的是confidence = prob_obj(检测到物体为1，没检测到位0) * iou(与最匹配的gt_box的overlap)。
 
-对于classes的预测值，是用softmax函数将其限制在[0, 1]范围内，在`region_op.cc`中可以看到（`softmax`函数）。
+对于classes的预测值，是用softmax函数(exp(xi)/sigma(exp(xi)))将其限制在[0, 1]范围内，在`region_op.cc`中可以看到（`softmax`函数）。
 
 tensorflow不允许修改feature map的输入像素值，所以可以看到我在多处地方都重新计算了预测值的logistic值。对于不同的loss，定义了不同的scale，可以在config文件中查看。
 
 注意，计算bounding box的loss时：实际上是计算logistic(tx), logistic(ty), tw, th以及t0的L2 loss，可以参考`delta_coord`函数；对于classification loss，计算的是交叉熵损失函数。
-具体而言，对于真实类别为i目标，关于第i类预测值的梯度为(1-softmax(prob_i))，对于其他类预测值的梯度为(0-softmax(prob_j))。可以参考[UFLDL](http://ufldl.stanford.edu/wiki/index.php/Softmax_Regression)
-中关于softmax函数的梯度计算，注意在`region`层中，没有可训练的参数theta。
+可以证明对于交叉熵损失函数对应的梯度与L2 loss对应的梯度是一致的，对于第j类都是: 1(y == j) - p(y=j|x), 当样本y的真实label为j时1(y == j) = 1。可以参考[UFLDL](http://ufldl.stanford.edu/wiki/index.php/Softmax_Regression)
+中关于softmax函数的梯度计算。不同的是，在`region`层中，没有可训练的参数theta。
 
-关于backward pass计算：logistic函数求导值为f(x) * (1-f(x))，并且tensorflow返回的是“梯度”而不是“负梯度”，因此计算梯度时只需要计算“正梯度”值。
+关于backward pass计算：logistic函数求导值为f(x) * (1-f(x))（tx, ty, t0）。对于classification的gradients，则直接是backward回来的值。前面已经说过，交叉熵损失函数的梯度
+和L2 loss对应的梯度是一致的，而我们计算loss时实际上是按照L2 loss来进行计算的，因此所得到的梯度就是我们所需要的梯度值，不需要进行二次转化。
+
+另外，tensorflow返回的是“梯度”而不是“负梯度”，因此计算梯度时只需要计算“正梯度”值。
 
 ### 训练
 
