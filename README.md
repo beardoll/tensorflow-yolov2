@@ -119,4 +119,9 @@ bounding boxes，存放在`all_boxes[cls][image_name]`中：
 `all_boxes[cls][image_name]`: 是一个以二维矩阵为元素的二维矩阵，每个元素代表的是`image_name`指定的图像中`cls`类的所有predicted bounding boxes。每个元素的每一行
 是`[xc, yc, w, h, confidence]`格式。
 
-在`lib/datasets/pascal_voc.py`中，重写了`imdb`的`evaluation_detections`函数。
+在`lib/datasets/pascal_voc.py`中，重写了`imdb`的`evaluation_detections`函数。该函数首先建立n个文件，每个文件对应一个类别的目标，存放该类目标所在的图像，其位置
+以及confidence等信息，用于为每一类单独评价mAP。文件生成后调用`_evaluate_mAP(self, classname)`函数，
+
+`_evaluate_mAP(self, classname)`: 先将该类所有的目标按confidence进行递减排序，然后confidence高者优先匹配gt_box。被匹配的gt_box不能被其他的predicted box匹配，这时
+那些predicted box就会被标记为fp。然后调用`_voc_ap(self, rec, prec, use_07_metric = True)`计算ap。具体请详细阅读代码，理解起来并不困难。（这部分其实来源于
+`Faster-RCNN_TF`工程）
