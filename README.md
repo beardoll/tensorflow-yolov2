@@ -39,8 +39,8 @@ darknet格式
     
 <div align=center><img width="600" height="400" src="intro_material/image_processing.png"/></div>
     
-   * 然后是在HSV空间随机扰动hue, saturation以及exposure。那部分代码写得比较长，其实就是RGB->HSV->RGB的一个过程。
-   * 最后，根据对图像的扰动，对相应的gt_box也需要做相应的扰动。`box_x_scale`和`box_y_scale`是将`sized image`的量度转化到`processed image`中去，因为标签数据是以原始图像为基准进行归一化的，如上所述，
+  * 然后是在HSV空间随机扰动hue, saturation以及exposure。那部分代码写得比较长，其实就是RGB->HSV->RGB的一个过程。
+  * 最后，根据对图像的扰动，对相应的gt_box也需要做相应的扰动。`box_x_scale`和`box_y_scale`是将`sized image`的量度转化到`processed image`中去，因为标签数据是以原始图像为基准进行归一化的，如上所述，
 现在是将resize之后的图像塞到输出图像中，因此bounding box的归一化也必须针对输出图像（processed image）。由此也可以推知`box_x_delta`和`box_y_delta`是如何计算的。
 * 在初始化自己的数据集类的时候（__init__(self, image_set, year = 2007, data_argument = True)），需要注意如下事项：
    * 成员变量`self._classes`: 只包括前景，背景不作一类
