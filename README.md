@@ -73,9 +73,7 @@ darknet格式
 * 对于每个gt_box，寻找与其overlap最大的predicted box（唯一），并且为该predicted box计算confidence loss, regression loss, classification loss等。也就是说，只有部分的predicted box
 会得到训练，而其余的摇摆人（虽然overlap > thresh，但是不被任何gt_box锁定），则不计算loss（也就是不对它们进行训练）。可以看出这是一种“精英训练”的策略。
 
-接下来说明一下loss是如何计算。我们首先关注一下最后的卷积层，`conv30`。这一层其实已经给出了预测结果。它有box_num * (class_num + 5)那么多个channel，其中`5`包含了：confidence，目标的
-bounding box，每个box都有5+class_num那么多预测值。对于feature map中的每个像素点（对应于原图中的某一块区域，感受野），它都会产生box_num个box信息。参考论文可知，我们会预先对训练数据的bounding
-box进行聚类，得到box_num种bounding box的大小作为先验信息（长，宽）。实际上，预测的bounding box的信息是针对于先验信息的偏移。可以用如下的图来解释：
+接下来说明一下loss是如何计算。我们首先关注一下最后的卷积层，`conv30`。这一层其实已经给出了预测结果。它有box_num * (class_num + 5)那么多个channel，其中`5`包含了：confidence，目标的bounding box，每个box都有5+class_num那么多预测值。对于feature map中的每个像素点（对应于原图中的某一块区域，感受野），它都会产生box_num个box信息。参考论文可知，我们会预先对训练数据的bounding box进行聚类，得到box_num种bounding box的大小作为先验信息（长，宽）。实际上，预测的bounding box的信息是针对于先验信息的偏移。可以用如下的图来解释：
 
 <div align=center><img width="550" height="400" src="intro_material/region.png"/></div>
 
@@ -90,12 +88,10 @@ box进行聚类，得到box_num种bounding box的大小作为先验信息（长�
 
 tensorflow不允许修改feature map的输入像素值，所以可以看到我在多处地方都重新计算了预测值的logistic值。对于不同的loss，定义了不同的scale，可以在config文件中查看。
 
-注意，计算bounding box的loss时：实际上是计算logistic(tx), logistic(ty), tw, th以及t0的L2 loss，可以参考`delta_coord`函数；对于classification loss，计算的是交叉熵损失函数。
-可以证明对于交叉熵损失函数对应的梯度与L2 loss对应的梯度是一致的，对于第j类都是: 1(y == j) - p(y=j|x), 当样本y的真实label为j时1(y == j) = 1。可以参考[UFLDL](http://ufldl.stanford.edu/wiki/index.php/Softmax_Regression)
+注意，计算bounding box的loss时：实际上是计算logistic(tx), logistic(ty), tw, th以及t0的L2 loss，可以参考`delta_coord`函数；对于classification loss，计算的是交叉熵损失函数。可以证明对于交叉熵损失函数对应的梯度与L2 loss对应的梯度是一致的，对于第j类都是: 1(y == j) - p(y=j|x), 当样本y的真实label为j时1(y == j) = 1。可以参考[UFLDL](http://ufldl.stanford.edu/wiki/index.php/Softmax_Regression)
 中关于softmax函数的梯度计算。不同的是，在`region`层中，没有可训练的参数theta。
 
-关于backward pass计算：logistic函数求导值为f(x) * (1-f(x))（tx, ty, t0）。对于classification的gradients，则直接是backward回来的值。前面已经说过，交叉熵损失函数的梯度
-和L2 loss对应的梯度是一致的，而我们计算loss时实际上是按照L2 loss来进行计算的，因此所得到的梯度就是我们所需要的梯度值，不需要进行二次转化。
+关于backward pass计算：logistic函数求导值为f(x) * (1-f(x))（tx, ty, t0）。对于classification的gradients，则直接是backward回来的值。前面已经说过，交叉熵损失函数的梯度和L2 loss对应的梯度是一致的，而我们计算loss时实际上是按照L2 loss来进行计算的，因此所得到的梯度就是我们所需要的梯度值，不需要进行二次转化。
 
 另外，tensorflow返回的是“梯度”而不是“负梯度”，因此计算梯度时只需要计算“正梯度”值。
 
@@ -113,15 +109,10 @@ tensorflow不允许修改feature map的输入像素值，所以可以看到我�
 ### 测试
 目前只写了关于`PASCAL_VOC`数据集的测试代码。
 
-在文件`tools/test.py`中，可以看到`test_net()`函数。该函数从数据集类中获取所有图像数据的绝对路径，并且对每一张图像调用`inference.py`中的`detect`函数，获取所有的predicted
-bounding boxes，存放在`all_boxes[cls][image_name]`中：
+在文件`tools/test.py`中，可以看到`test_net()`函数。该函数从数据集类中获取所有图像数据的绝对路径，并且对每一张图像调用`inference.py`中的`detect`函数，获取所有的predicted bounding boxes，存放在`all_boxes[cls][image_name]`中：
 
-`all_boxes[cls][image_name]`: 是一个以二维矩阵为元素的二维矩阵，每个元素代表的是`image_name`指定的图像中`cls`类的所有predicted bounding boxes。每个元素的每一行
-是`[xc, yc, w, h, confidence]`格式。
+`all_boxes[cls][image_name]`: 是一个以二维矩阵为元素的二维矩阵，每个元素代表的是`image_name`指定的图像中`cls`类的所有predicted bounding boxes。每个元素的每一行是`[xc, yc, w, h, confidence]`格式。
 
-在`lib/datasets/pascal_voc.py`中，重写了`imdb`的`evaluation_detections`函数。该函数首先建立n个文件，每个文件对应一个类别的目标，存放该类目标所在的图像，其位置
-以及confidence等信息，用于为每一类单独评价mAP。文件生成后调用`_evaluate_mAP(self, classname)`函数，
+在`lib/datasets/pascal_voc.py`中，重写了`imdb`的`evaluation_detections`函数。该函数首先建立n个文件，每个文件对应一个类别的目标，存放该类目标所在的图像，其位置以及confidence等信息，用于为每一类单独评价mAP。文件生成后调用`_evaluate_mAP(self, classname)`函数，
 
-`_evaluate_mAP(self, classname)`: 先将该类所有的目标按confidence进行递减排序，然后confidence高者优先匹配gt_box。被匹配的gt_box不能被其他的predicted box匹配，这时
-那些predicted box就会被标记为fp。然后调用`_voc_ap(self, rec, prec, use_07_metric = True)`计算ap。具体请详细阅读代码，理解起来并不困难。（这部分其实来源于
-`faster-rcnn`工程）
+`_evaluate_mAP(self, classname)`: 先将该类所有的目标按confidence进行递减排序，然后confidence高者优先匹配gt_box。被匹配的gt_box不能被其他的predicted box匹配，这时那些predicted box就会被标记为fp。然后调用`_voc_ap(self, rec, prec, use_07_metric = True)`计算ap。具体请详细阅读代码，理解起来并不困难。（这部分其实来源于`faster-rcnn`工程）
