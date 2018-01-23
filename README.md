@@ -36,12 +36,11 @@ darknet格式
 * 图像增强：
    * 先对图像的长宽比，大小进行扰动（`new_ratio`, `scale`），请注意这里`scale`是针对输出图像而言的，也就是根据训练所需的图像大小而言的。
    * 将扰动后的图像放入输出图像容器中，放置的位置是随机的，由`dx`和`dy`决定。下面我画一个图来说明，这里假设resize之后的图像比输出图像要大，因此我们只能裁出其中一部分来作为输出（dx，dy都是负数）：
-    
-<div align=center><img width="600" height="400" src="intro_material/image_processing.png"/></div>
-*    
   * 然后是在HSV空间随机扰动hue, saturation以及exposure。那部分代码写得比较长，其实就是RGB->HSV->RGB的一个过程。
-  * 最后，根据对图像的扰动，对相应的gt_box也需要做相应的扰动。`box_x_scale`和`box_y_scale`是将`sized image`的量度转化到`processed image`中去，因为标签数据是以原始图像为基准进行归一化的，如上所述，
-现在是将resize之后的图像塞到输出图像中，因此bounding box的归一化也必须针对输出图像（processed image）。由此也可以推知`box_x_delta`和`box_y_delta`是如何计算的。
+  * 最后，根据对图像的扰动，对相应的gt_box也需要做相应的扰动。`box_x_scale`和`box_y_scale`是将`sized image`的量度转化到`processed image`中去，因为标签数据是以原始图像为基准进行归一化的，如上所述，现在是将resize之后的图像塞到输出图像中，因此bounding box的归一化也必须针对输出图像（processed image）。由此也可以推知`box_x_delta`和`box_y_delta`是如何计算的。
+
+<div align=center><img width="600" height="400" src="intro_material/image_processing.png"/></div>
+
 * 在初始化自己的数据集类的时候（__init__(self, image_set, year = 2007, data_argument = True)），需要注意如下事项：
    * 成员变量`self._classes`: 只包括前景，背景不作一类
    * 需要实现`read_annotations()`方法，该方法按顺序读取图像的绝对路径，以及其对应的ground truth boxes。在实现`get_batch_data(self, w, h)`时，注意feed给`process_image`的图像数据以及标签都是经过归一化的，其中标签数据格式[cls_idx, xc, yc, w, h]，这里cls_idx是目标所属的类对应的标号，xc, yc是bounding box的中心，w和h是候选框的长宽，它们对以宽/高进行了归一化。若不需要调用`process_image`（也就是不需要进行图像增强），则请调用`resize_image_keep_ratio`以及`resize_label_keep_ratio`方法获得所需大小的图像和标签。
