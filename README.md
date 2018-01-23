@@ -68,6 +68,7 @@ darknet格式
 
 ### Region层
 这一层的功能主要是为了计算loss。总结一下大概是做了两件事情（region_op.cc）：
+
 * 对于每个predicted box，寻找与其最匹配的gt_box，并且计算overlap。若overlap > thresh，则暂时将confidence loss设为0；否则计算confidence loss = predicted_confidence - 0
 (因为这些box的confidence应该是0，也就是没有检测到任何目标)。
 * 对于每个gt_box，寻找与其overlap最大的predicted box（唯一），并且为该predicted box计算confidence loss, regression loss, classification loss等。也就是说，只有部分的predicted box
@@ -100,8 +101,8 @@ tensorflow不允许修改feature map的输入像素值，所以可以看到我�
 另外，tensorflow返回的是“梯度”而不是“负梯度”，因此计算梯度时只需要计算“正梯度”值。
 
 ### 训练
-训练采用的是单机多卡模式（data parallel）。只需要运行`tools`目录下的`train.py`文件，在文件开头的全局变量`DATASET`中你需要指定训练所使用的数据集。然后调用`lib/solver`
-中的`SolverWrapper`类，传入参数：
+训练采用的是单机多卡模式（data parallel）。只需要运行`tools`目录下的`train.py`文件，在文件开头的全局变量`DATASET`中你需要指定训练所使用的数据集。然后调用`lib/solver`中的`SolverWrapper`类，传入参数：
+
 * `imdb`: 由`factory`的`__sets[name]`提供。
 * `snapshot_infix`: 存放中间模型文件的倒数第二层目录，用于区分不同数据集所得模型的存放路径。
 * `pretrained_model`: 使用ImageNet训练过的base model（绝对路径）。
