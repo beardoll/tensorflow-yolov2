@@ -36,7 +36,9 @@ darknet格式
 * 图像增强：
     * 先对图像的长宽比，大小进行扰动（`new_ratio`, `scale`），请注意这里`scale`是针对输出图像而言的，也就是根据训练所需的图像大小而言的。
     * 将扰动后的图像放入输出图像容器中，放置的位置是随机的，由`dx`和`dy`决定。下面我画一个图来说明，这里假设resize之后的图像比输出图像要大，因此我们只能裁出其中一部分来作为输出（dx，dy都是负数）：
+    
 <div align=center><img width="600" height="400" src="intro_material/image_processing.png"/></div>
+
     * 然后是在HSV空间随机扰动hue, saturation以及exposure。那部分代码写得比较长，其实就是RGB->HSV->RGB的一个过程。
     * 最后，根据对图像的扰动，对相应的gt_box也需要做相应的扰动。`box_x_scale`和`box_y_scale`是将`sized image`的量度转化到`processed image`中去，因为标签数据是以原始图像为基准进行归一化的，如上所述，
 现在是将resize之后的图像塞到输出图像中，因此bounding box的归一化也必须针对输出图像（processed image）。由此也可以推知`box_x_delta`和`box_y_delta`是如何计算的。
@@ -48,6 +50,7 @@ darknet格式
     图像和标签。
     * 类方法`_get_next_batch_inds(self)`以及`_shuffle_inds(self)`: 这是为了随机选取训练样本而设计的计数变量。当本次epoch中剩余数据不足以生成一个batch时，则开启新的epoch。
     * 在类方法中还需要实现evaluation function。在`pascal_voc`类中提供了evaluation的模板，用于计算mAP。
+    
 * 将数据集加入到`factory.py`中: 这里用`__sets`存放了不同名称的数据集实例，比如`__sets[pascal_voc_train]`和`__sets[pascal_voc_test]`。在读取数据集的时候直接调用`get_imdb(name)`
 即可获得相应的数据集，调用通用接口`get_batch(self, w, h)`就可以得到batch数据。
 * 关于kitti数据集：由于我之前用darknet做训练时，按照其要求先将数据转化成归一化的[cls_idx, xc, yc, w, h]格式。所以在`read_annotation`这个函数中我设置了两种读取annotation的方式，
